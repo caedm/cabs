@@ -9,6 +9,7 @@ import ldap
 import sys
 import logging
 import random
+import os
 
 from time import sleep
 
@@ -367,7 +368,8 @@ def setBlacklist(data):
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
     global settings
-    with open('CABS_server.conf', 'r') as f:
+    filelocation = os.path.dirname(os.path.abspath(__file__)) + "/CABS_server.conf"
+    with open(filelocation, 'r') as f:
         for line in f:
             line = line.strip()
             if (not line.startswith('#')) and line:
