@@ -7,6 +7,9 @@ if [ "$1" = "-h" ]; then
     exit 0
 fi
 
+#get script dir
+SRCDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
 #use apt-get to make sure that the following are installed:
 #python, python-twisted, python-ldap, python-mysqldb, pyOpenSSL
 #In the future, i may need to specify version numbers, this was build with python-twisted 14, and python2.7
@@ -24,11 +27,11 @@ fi
 
 mkdir -m 775 -p $Dir
 
-cp ./CABS_server.conf $Dir/CABS_server.conf
-cp ./CABS_server.py $Dir/CABS_server.py
-cp ./*.pem $Dir/
+cp $SRCDIR/CABS_server.conf $Dir/CABS_server.conf
+cp $SRCDIR/CABS_server.py $Dir/CABS_server.py
+cp $SRCDIR/*.pem $Dir/
 
 #then call setupDatabase.py
-python ./setupDatabase.py
+python $SRCDIR/setupDatabase.py
 
 exit 0
