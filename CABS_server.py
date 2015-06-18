@@ -216,10 +216,17 @@ class HandleClient(LineOnlyReceiver):
             try:
                 l = ldap.initialize(Server)
                 l.set_option(ldap.OPT_REFERRALS,0)
-                l.bind(DN, password, ldap.AUTH_SIMPLE)
+                l.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+                l.set_option(ldap.OPT_X_TLS,ldap.OPT_X_TLS_DEMAND)
+                l.set_option(ldap.OPT_X_TLS_DEMAND, True)
+                l.bind_s(DN, password, ldap.AUTH_SIMPLE)
                 r = l.search(Base, Scope, UsrAttr + '=' + user, Attrs)
                 result = l.result(r,9)      
                 logger.debug("Sucessfully returned {0}".format(result))
+                try:
+                    l.unbind()
+                except:
+                    pass
             except:
                 logger.warning("User {0} was unable to authenticate.".format(user))
                 return
