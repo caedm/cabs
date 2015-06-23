@@ -68,8 +68,9 @@ class HandleAgent(LineOnlyReceiver):
                     regexstr += report[item]
                     regexstr += '$)|'
                 regexstr = regexstr[0:-1]
-                #querystring = "INSERT INTO current VALUES (%s, NULL, %s, True, NOW()) ON DUPLICATE KEY UPDATE confirmed = True, connecttime = Now(), user = %s"
-                #r2 = dbpool.runQuery(querystring,(report[2],report[1],users))
+                if settings.get("One_Connection") == 'True' or settings.get("One_Connection") == True:
+                    querystring = "INSERT INTO current VALUES (%s, NULL, %s, True, NOW()) ON DUPLICATE KEY UPDATE confirmed = True, connecttime = Now(), user = %s"
+                    r2 = dbpool.runQuery(querystring,(report[2],report[1],users))
                 querystring = "UPDATE current SET confirmed = True, connecttime = Now() WHERE (machine = %s AND user REGEXP %s)"
                 r2 = dbpool.runQuery(querystring,(report[1],regexstr))
             else:
@@ -274,7 +275,10 @@ class HandleClient(LineOnlyReceiver):
 
     def getSecondaryMachines(self, pools, user, originalpool):
         #parse secondary pools and do a machine request
-        args = tuple(pools[0][0].split(','))
+        if pools[0][0] is not None:
+            args = tuple(pools[0][0].split(','))
+        else:
+            args = None
         querystring = "SELECT machines.machine FROM machines INNER JOIN pools ON pools.name = machines.name WHERE ((machines.machine NOT IN (SELECT machine FROM current)) AND (active = True) AND (machines.deactivated = False) AND (pools.deactivated = False) AND ((pools.name = %s)"
         for pool in args:
             querystring += " OR (pools.name = %s)"
@@ -450,6 +454,8 @@ def readConfigFile():
         settings["Log_Keep"] = '500'
     if not settings.get("Log_Time"):
         settings["Log_Time"] = '1800'
+    if not settings.get("One_Connection"):
+        settings["One_Connection"] = 'True'
 
 def readDatabaseSettings():
     #This needs to be a "blocked" call to ensure order, it can't be asynchronous.
