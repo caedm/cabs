@@ -2,6 +2,7 @@
 from twisted.internet.protocol import Factory, Protocol
 from twisted.internet import ssl, reactor, endpoints, defer, task
 from twisted.protocols.basic import LineOnlyReceiver
+from twisted.protocols.policies import TimeoutMixin
 from twisted.enterprise import adbapi
 from twisted.python import log
 
@@ -25,9 +26,11 @@ logger=logging.getLogger()
 random.seed()
 
 
-class HandleAgent(LineOnlyReceiver):
+class HandleAgent(LineOnlyReceiver, TimeoutMixin):
     def __init__(self, factory):
         self.factory = factory
+        #timeout after 9 seconds
+        self.setTimeout(9)
     
     def connectionMade(self):
         self.agentAddr = self.transport.getPeer()
@@ -91,9 +94,10 @@ class HandleAgentFactory(Factory):
         return HandleAgent(self)
 
 
-class HandleClient(LineOnlyReceiver):
+class HandleClient(LineOnlyReceiver, TimeoutMixin):
     def __init__(self, factory):
         self.factory = factory
+        self.setTimeout(9)#set timeout of 9 seconds
     
     def connectionMade(self):
         #if auto then add to blacklist
