@@ -507,7 +507,8 @@ def setLogging():
     
     logger.info("Server Settings:")
     for key in settings:
-        logger.info("{0} = {1}".format(key, settings.get(key)))
+        if not key.endswith("Pass"):
+            logger.info("{0} = {1}".format(key, settings.get(key)))
 
 def main():
     #Read the settings
