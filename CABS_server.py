@@ -89,8 +89,17 @@ class HandleAgentFactory(Factory):
     def buildProtocol(self, addr):
         #Blacklist check here
         if addr.host in blacklist:
-            logger.debug("Blacklisted address {0} tried to connect as an Agent".format(addr.host))
-            return None
+            logger.debug("Blacklisted address {0} tried to connect".format(addr.host))
+            protocol = DoNothing()
+            protocol.factory = self
+            return protocol
+        
+        #limit connection number here
+        if (settings.get("Max_Agents") is not None and settings.get("Max_Agents") != 'None') and (int(self.numConnections) >= int(settings.get("Max_Agents"))):
+            logger.warning("Reached maximum Agent connections")
+            protocol = DoNothing()
+            protocol.factory = self
+            return protocol
         return HandleAgent(self)
 
 
@@ -406,6 +415,8 @@ def readConfigFile():
     #insert default settings for all not specified
     if not settings.get("Max_Clients"):
         settings["Max_Clients"] = '62'
+    if not settings.get("Max_Agents"):
+        settings["Max_Agents"] = '120'
     if not settings.get("Client_Port"):
         settings["Client_Port"] = '18181'
     if not settings.get("Agent_Port"):
