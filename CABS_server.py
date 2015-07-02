@@ -219,7 +219,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             auth = False
         else:
             Server = settings.get("Auth_Server")
-            if not Server.startwith("ldap"):
+            if not Server.startswith("ldap"):
                 Server = "ldap://" + Server
             DN = settings.get("Auth_Prefix") + user + settings.get("Auth_Postfix")
             Base = settings.get("Auth_Base")
