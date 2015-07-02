@@ -218,7 +218,9 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             #Don't try to authenticate, just give back the list of pools
             auth = False
         else:
-            Server = "ldap://" + settings.get("Auth_Server")
+            Server = settings.get("Auth_Server")
+            if not Server.startwith("ldap"):
+                Server = "ldap://" + Server
             DN = settings.get("Auth_Prefix") + user + settings.get("Auth_Postfix")
             Base = settings.get("Auth_Base")
             Scope = ldap.SCOPE_SUBTREE
@@ -228,11 +230,22 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             logger.debug("Attempting to Autenticate to {0} as {1}".format(Server, DN))
             
             try:
+                if settings.get("Auth_Secure") == 'True':
+                    if settings.get("Auth_Cert") != 'None' and settings.get("Auth_Cert") is not None:
+                        ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, settings.get("Auth_Cert"))
+                        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+                    else:
+                        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
                 l = ldap.initialize(Server)
                 l.set_option(ldap.OPT_REFERRALS,0)
                 l.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
-                l.set_option(ldap.OPT_X_TLS,ldap.OPT_X_TLS_DEMAND)
-                l.set_option(ldap.OPT_X_TLS_DEMAND, True)
+                if settings.get("Auth_Secure") == 'True':
+                    try:
+                        l.start_tls_s()
+                    except Exception as e:
+                        logger.error("Could not start a TLS connection to the server at {0} with the certificate {1}".format(Server, settings.get("Auth_Cert")))
+                        logger.debug("error = {0}".format(e))
+                        return
                 l.bind_s(DN, password, ldap.AUTH_SIMPLE)
                 r = l.search(Base, Scope, UsrAttr + '=' + user, Attrs)
                 result = l.result(r,9)      
@@ -455,6 +468,10 @@ def readConfigFile():
         settings["Auth_Usr_Attr"] = 'None'
     if not settings.get("Auth_Grp_Attr"):
         settings["Auth_Grp_Attr"] = 'None'
+    if not settings.get("Auth_Secure"):
+        settings["Auth_Secure"] = 'False'
+    if not settings.get("Auth_Cert"):
+        settings["Auth_Cert"] = 'None'
     if not settings.get("SSL_Priv_Key"):
         settings["SSL_Priv_Key"] = 'None'
     if not settings.get("SSL_Cert"):
