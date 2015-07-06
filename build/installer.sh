@@ -29,6 +29,7 @@ mkdir -m 775 -p $Dir
 
 cp $SRCDIR/CABS_server.conf $Dir/CABS_server.conf
 cp $SRCDIR/CABS_server.py $Dir/CABS_server.py
+cp $SRCDIR/Run_Broker.sh $Dir/Run_Broker.sh
 cp $SRCDIR/*.pem $Dir/
 
 #then call setupDatabase.py

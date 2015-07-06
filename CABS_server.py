@@ -4,6 +4,7 @@ from twisted.internet import ssl, reactor, endpoints, defer, task
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.protocols.policies import TimeoutMixin
 from twisted.enterprise import adbapi
+from twisted.names import client
 from twisted.python import log
 
 import ldap
@@ -219,6 +220,9 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             auth = False
         else:
             Server = settings.get("Auth_Server")
+            if Server.startswith("AUTO"):
+                logger.warning("A user tried to Authenticate before a LDAP server could be found")
+                raise ReferenceError("No AUTO Authentication Server yet")
             if not Server.startswith("ldap"):
                 Server = "ldap://" + Server
             DN = settings.get("Auth_Prefix") + user + settings.get("Auth_Postfix")
@@ -400,7 +404,23 @@ def setBlacklist(data):
     for item in data:
         blacklist.add(item[0])
         logger.debug(item[0])
-        
+
+def setAuthServer(results):
+    results = results[0]
+    if not results[0].payload.target:
+        logger.error("Could not find LDAP server from AUTO")
+    else:
+        logger.debug("Found AUTO authentication servers : {0}".format(', '.join(str(x.payload.target) for x in results)))
+        logger.info("Using LDAP server {0}".format(str(results[0].payload.target)))
+        settings["Auth_Server"] = str(results[0].payload.target)
+
+def getAuthServer():
+    logger.debug("Getting LDAP server from AUTO")
+    domain = settings.get("Auth_Server").replace('AUTO', '', 1)
+    domain = '_ldap._tcp' + domain
+    resolver = client.Resolver('/etc/resolv.conf')
+    d = resolver.lookupService(domain)
+    d.addCallback(setAuthServer)
 
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
@@ -588,6 +608,12 @@ def main():
         #Check Machine status every 1/2 Reserve_Time
         checkup = task.LoopingCall(checkMachines)
         checkup.start( int(settings.get("Reserve_Time"))/2 )
+    
+    #resolve LDAP server
+    if settings.get("Auth_Server").startswith("AUTO"):
+        resolveldap = task.LoopingCall(getAuthServer)
+        #Get the LDAP server every 2 hours
+        resolveldap.start(7200)
 
     #Start Blacklist cacheing
     if settings.get("Use_Blacklist") == 'True':
