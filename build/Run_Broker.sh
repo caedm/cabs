@@ -4,11 +4,13 @@
 
 lockfile=/var/lock/cabs_server
 srcdir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+#change this to /dev/null to have no log
+logfile=./broker_log
 
 start() {
     if [ ! -f $lockfile ]; then
         echo "Starting CABS Broker"
-        nohup /usr/bin/python $srcdir/CABS_server.py & echo $! > $lockfile
+        nohup /usr/bin/python $srcdir/CABS_server.py > $logfile 2>&1 & echo $! > $lockfile
     else
         echo "Lockfile exists already. Try restart."
     fi
