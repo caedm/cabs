@@ -416,7 +416,7 @@ def setAuthServer(results):
 
 def getAuthServer():
     logger.debug("Getting LDAP server from AUTO")
-    domain = settings.get("Auth_Server").replace('AUTO', '', 1)
+    domain = settings.get("Auth_Auto").replace('AUTO', '', 1)
     domain = '_ldap._tcp' + domain
     resolver = client.Resolver('/etc/resolv.conf')
     d = resolver.lookupService(domain)
@@ -611,6 +611,7 @@ def main():
     
     #resolve LDAP server
     if settings.get("Auth_Server").startswith("AUTO"):
+        settings["Auth_Auto"] = settings.get("Auth_Server")
         resolveldap = task.LoopingCall(getAuthServer)
         #Get the LDAP server every 2 hours
         resolveldap.start(7200)
