@@ -49,7 +49,7 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
         self.transport.abortConnection()
 
     def lineReceived(self, line):
-        #types of reports = status report (sr) or login report (lr) or logoff report (fr)
+        #types of reports = status report (sr)
         report = line.split(':')
         logger.debug('There are {0} users on {1}'.format(len(report)-2, report[1]))
         if report[0] == 'sr':
