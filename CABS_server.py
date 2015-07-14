@@ -51,25 +51,26 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
     def lineReceived(self, line):
         #types of reports = status report (sr) and status process report (spr)
         report = line.split(':')
-        logger.debug('There are {0} users on {1}'.format(len(report)-2, report[1]))
         if report[0] == 'sr' or report[0] == 'spr':
             status = None
             if report[0] == 'spr':
-                status = report.pop[1]
+                status = report.pop(1)
                 if status == '-1':
                     status = 'Unknown'
-                elif status == '0'
+                elif status == '0':
                     status = 'Not Found'
-                elif status == '1'
+                elif status == '1':
                     status = 'Not Running'
-                elif status == '2'
+                elif status == '2':
                     status = 'Not Connected'
-                elif status == '3'
+                elif status == '3':
                     status = 'Okay'
+                logger.debug("The process on {0} is {1}".format(report[1], status))
 
+            logger.debug('There are {0} users on {1}'.format(len(report)-2, report[1]))
             #Mark the machine as active, and update timestamp
             querystring = "UPDATE machines SET active = True, status = %s WHERE machine = %s"
-            r1 = dbpool.runQuery(querystring, (report[1], status))
+            r1 = dbpool.runQuery(querystring, (status, report[1]))
             #confirm any users that reserved the machine if they are there, or unconfirm them if they are not
             #For now we don't support assigning multiple users per machine, so only one should be on at a time
             #but, if we do have multiple, let it be so
@@ -536,7 +537,29 @@ def readDatabaseSettings():
     for rule in data:
         settings[str(rule[0])] = rule[1]
     
+    cursor.close()
     dbpool.disconnect(con)
+
+    con = dbpool.connect()
+    cursor = con.cursor()
+    querystring = "UPDATE settings SET applied = True"
+    cursor.execute(querystring)
+    data = cursor.fetchall()
+    cursor.close()
+    con.commit()
+    dbpool.disconnect(con)
+
+def checkSettingsChanged():
+    querystring = "select COUNT(*) FROM settings WHERE (applied = False OR applied IS NULL)"
+    r = dbpool.runQuery(querystring)
+    r.addBoth(getSettingsChanged)
+
+def getSettingsChanged(data):
+    if int(data[0][0]) > 0:
+        logger.error("Interface settings had changed... Restarting the Server")
+        reactor.stop()
+        #should probably sleep here for a few seconds?
+        os.execv(__file__, sys.argv)
 
 class MySQLHandler(logging.Handler):
     #This is our logger to the Database, it will handle out logger calls
@@ -640,7 +663,11 @@ def main():
     if int(settings.get("Log_Amount")) != 0:
         prune = task.LoopingCall(pruneLog)
         prune.start(int(settings.get("Log_Time")))
-    
+
+    #Check the online settings every 9 minutes, and restart if they changed
+    checksettingschange = task.LoopingCall(checkSettingsChanged)
+    checksettingschange.start(540)
+
     #Start Everything
     reactor.run()
 

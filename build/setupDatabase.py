@@ -62,7 +62,7 @@ def main():
         "CREATE TABLE IF NOT EXISTS pools (name VARCHAR(32) PRIMARY KEY, description VARCHAR(1024) NULL, secondary VARCHAR(1024) NULL, groups VARCHAR(1024) NULL, deactivated TINYINT(1) NOT NULL, reason VARCHAR(120) NULL)",
         "CREATE TABLE IF NOT EXISTS blacklist (address VARCHAR(32) PRIMARY KEY, banned TINYINT(1) NULL, attempts INT(11) NULL, timecleared TIME NULL)",
         "CREATE TABLE IF NOT EXISTS whitelist (address VARCHAR(32) PRIMARY KEY)",
-        "CREATE TABLE IF NOT EXISTS settings (setting VARCHAR(32) PRIMARY KEY, value VARCHAR(64) NOT NULL)",
+        "CREATE TABLE IF NOT EXISTS settings (setting VARCHAR(32) PRIMARY KEY, value VARCHAR(64) NOT NULL, applied TINYINT(1))",
         "CREATE TABLE IF NOT EXISTS log (timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, message VARCHAR(1024) NULL, msg_type VARCHAR(16) NULL, id INT(11) PRIMARY KEY AUTO_INCREMENT)",
         ]
     for query in operations:
