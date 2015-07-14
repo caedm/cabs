@@ -49,13 +49,27 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
         self.transport.abortConnection()
 
     def lineReceived(self, line):
-        #types of reports = status report (sr)
+        #types of reports = status report (sr) and status process report (spr)
         report = line.split(':')
         logger.debug('There are {0} users on {1}'.format(len(report)-2, report[1]))
-        if report[0] == 'sr':
+        if report[0] == 'sr' or report[0] == 'spr':
+            status = None
+            if report[0] == 'spr':
+                status = report.pop[1]
+                if status == '-1':
+                    status = 'Unknown'
+                elif status == '0'
+                    status = 'Not Found'
+                elif status == '1'
+                    status = 'Not Running'
+                elif status == '2'
+                    status = 'Not Connected'
+                elif status == '3'
+                    status = 'Okay'
+
             #Mark the machine as active, and update timestamp
-            querystring = "UPDATE machines SET active = True WHERE machine = %s"
-            r1 = dbpool.runQuery(querystring, (report[1],))
+            querystring = "UPDATE machines SET active = True, status = %s WHERE machine = %s"
+            r1 = dbpool.runQuery(querystring, (report[1], status))
             #confirm any users that reserved the machine if they are there, or unconfirm them if they are not
             #For now we don't support assigning multiple users per machine, so only one should be on at a time
             #but, if we do have multiple, let it be so
@@ -279,7 +293,8 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             return (self.getPreviousSession(user,requestedpool), self.getMachine(groups, auth, requestedpool))
     
     def getPreviousSession(self, user, requestedpool):
-        querystring = "SELECT machine FROM current WHERE (user = %s AND name = %s)"
+        #only find a previous machine if it had been in the same pool, and confirmed
+        querystring = "SELECT machine FROM current WHERE (user = %s AND name = %s AND confirmed = True)"
         return dbpool.runQuery(querystring, (user, requestedpool))
     
     def getMachine(self, groups, auth, requestedpool):
@@ -383,7 +398,7 @@ def checkMachines():
     logger.debug("Checking Machines")
     #check for inactive machines
     if (settings.get("Timeout_time") is not None) or (settings.get("Timeout_time") != 'None'):
-        querystring = "UPDATE machines SET active = False  WHERE last_heartbeat < DATE_SUB(NOW(), INTERVAL %s SECOND)"
+        querystring = "UPDATE machines SET active = False, status = NULL WHERE last_heartbeat < DATE_SUB(NOW(), INTERVAL %s SECOND)"
         r1 = dbpool.runQuery(querystring, (settings.get("Timeout_Time"),))
     
     #check for reserved machines without confirmation
