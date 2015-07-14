@@ -307,10 +307,10 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
                 regexstring += group
                 regexstring += ".*)|"
             regexstring = regexstring[0:-1]
-            querystring = "SELECT machines.machine FROM machines INNER JOIN pools ON pools.name = machines.name WHERE ((machines.machine NOT IN (SELECT machine FROM current)) AND (active = True) AND (pools.name = %s) AND (groups IS NULL OR groups REGEXP %s) AND (machines.deactivated = False) AND (pools.deactivated = False))"
+            querystring = "SELECT machines.machine FROM machines INNER JOIN pools ON pools.name = machines.name WHERE ((machines.machine NOT IN (SELECT machine FROM current)) AND (active = True) AND (status = 'Okay') AND (pools.name = %s) AND (groups IS NULL OR groups REGEXP %s) AND (machines.deactivated = False) AND (pools.deactivated = False))"
             r = dbpool.runQuery(querystring, (requestedpool, regexstring))
         else:
-            querystring = "SELECT machines.machine FROM machines INNER JOIN pools ON pools.name = machines.name WHERE ((machines.machine NOT IN (SELECT machine FROM current)) AND (active = True) AND (pools.name = %s) AND (groups IS NULL) AND (machines.deactivated = False) AND (pools.deactivated = False))"
+            querystring = "SELECT machines.machine FROM machines INNER JOIN pools ON pools.name = machines.name WHERE ((machines.machine NOT IN (SELECT machine FROM current)) AND (active = True) AND (status = 'Okay') AND (pools.name = %s) AND (groups IS NULL) AND (machines.deactivated = False) AND (pools.deactivated = False))"
             r = dbpool.runQuery(querystring, (requestedpool,))
         return r
 
@@ -646,6 +646,10 @@ def main():
         #Check Machine status every 1/2 Reserve_Time
         checkup = task.LoopingCall(checkMachines)
         checkup.start( int(settings.get("Reserve_Time"))/2 )
+    else:
+        #this to do so things kinda work without agents
+        querystring = "UPDATE machines SET active = True, status = 'Okay'"
+        r1 = dbpool.runQuery(querystring)
     
     #resolve LDAP server
     if settings.get("Auth_Server").startswith("AUTO"):
