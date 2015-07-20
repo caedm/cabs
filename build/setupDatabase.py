@@ -57,7 +57,7 @@ def main():
             print "Could not connect to MySQL server.\nMake sure that the MySQL server is installed and {0} is a user with proper permissions and password.".format(dbuser)
             raise SystemExit(1)
     
-    operations = ["CREATE TABLE IF NOT EXISTS machines (name VARCHAR(32) NOT NULL, machine VARCHAR(32) PRIMARY KEY, active TINYINT(1) NOT NULL, status VARCHAR(18), last_heartbeat TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, deactivated TINYINT(1) NOT NULL, reason VARCHAR(120))",
+    operations = ["CREATE TABLE IF NOT EXISTS machines (name VARCHAR(32) NOT NULL, machine VARCHAR(32) PRIMARY KEY, active TINYINT(1) NOT NULL, status VARCHAR(64), last_heartbeat TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, deactivated TINYINT(1) NOT NULL, reason VARCHAR(120))",
         "CREATE TABLE IF NOT EXISTS current (user VARCHAR(32) NOT NULL, name VARCHAR(32) NULL, machine VARCHAR(32) PRIMARY KEY, confirmed TINYINT(1) NOT NULL, connecttime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS pools (name VARCHAR(32) PRIMARY KEY, description VARCHAR(1024) NULL, secondary VARCHAR(1024) NULL, groups VARCHAR(1024) NULL, deactivated TINYINT(1) NOT NULL, reason VARCHAR(120) NULL)",
         "CREATE TABLE IF NOT EXISTS blacklist (address VARCHAR(32) PRIMARY KEY, banned TINYINT(1) NULL, attempts INT(11) NULL, timecleared TIME NULL)",

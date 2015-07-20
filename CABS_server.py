@@ -55,21 +55,22 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
             status = None
             if report[0] == 'spr':
                 status = report.pop(1)
-                if status == '-1':
-                    status = 'Unknown'
-                elif status == '0':
-                    status = 'Not Found'
-                elif status == '1':
-                    status = 'Not Running'
-                elif status == '2':
-                    status = 'Not Connected'
-                elif status == '3':
-                    status = 'Okay'
+                if status.endswith('-1'):
+                    status = status.rstrip('-1') + ' : Unknown'
+                elif status.endswith('0'):
+                    status = status.rstrip('0') + ' : Not Found'
+                elif status.endswith('1'):
+                    status = status.rstrip('1') + ' : Not Running'
+                elif status.endswith('2'):
+                    status = status.rstrip('2') + ' : Not Connected'
+                elif status.endswith('3'):
+                    status = status.rstrip('3') + ' : Okay'
+
                 logger.debug("The process on {0} is {1}".format(report[1], status))
 
             logger.debug('There are {0} users on {1}'.format(len(report)-2, report[1]))
             #Mark the machine as active, and update timestamp
-            querystring = "UPDATE machines SET active = True, status = %s WHERE machine = %s"
+            querystring = "UPDATE machines SET active = True, last_heartbeat = NOW(), status = %s WHERE machine = %s"
             r1 = dbpool.runQuery(querystring, (status, report[1]))
             #confirm any users that reserved the machine if they are there, or unconfirm them if they are not
             #For now we don't support assigning multiple users per machine, so only one should be on at a time
