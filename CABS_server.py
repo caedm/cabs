@@ -327,10 +327,11 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         else:
             args = None
         querystring = "SELECT machines.machine FROM machines INNER JOIN pools ON pools.name = machines.name WHERE ((machines.machine NOT IN (SELECT machine FROM current)) AND (active = True) AND (machines.deactivated = False) AND (pools.deactivated = False) AND ((pools.name = %s)"
-        for pool in args:
-            querystring += " OR (pools.name = %s)"
+        if args is not None:
+            for pool in args:
+                querystring += " OR (pools.name = %s)"
         querystring += "))"
-        args = (originalpool,) + args
+        args = (originalpool,) + (args if args is not None else ())
         r = dbpool.runQuery(querystring, args)
         r.addBoth(self.writeMachine, user, originalpool, False, True)
 
