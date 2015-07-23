@@ -1,4 +1,12 @@
 #!/usr/bin/python
+
+## CABS_Server.py
+# This is the webserver that is at the center of the CABS system.
+# It is asynchronous, and as such the callbacks and function flow can be a bit confusing
+# The basic idea is that the HandleAgentFactory and HandleClienFactory make new HandleAgents and Handle Clients
+# There is one per connection, and it processes all communication on that connection, without blocking
+
+
 from twisted.internet.protocol import Factory, Protocol
 from twisted.internet import ssl, reactor, endpoints, defer, task
 from twisted.protocols.basic import LineOnlyReceiver
@@ -27,6 +35,7 @@ logger=logging.getLogger()
 random.seed()
 
 
+## Handles each Agent connection
 class HandleAgent(LineOnlyReceiver, TimeoutMixin):
     def __init__(self, factory):
         self.factory = factory
@@ -97,7 +106,7 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
                 querystring = "DELETE FROM current WHERE machine = %s"
                 r2 = dbpool.runQuery(querystring, (report[1],))
 
-
+## Creates a HandleAgent for each connection
 class HandleAgentFactory(Factory):
     
     def __init__(self):
@@ -119,7 +128,7 @@ class HandleAgentFactory(Factory):
             return protocol
         return HandleAgent(self)
 
-
+## Handles each Client Connection
 class HandleClient(LineOnlyReceiver, TimeoutMixin):
     def __init__(self, factory):
         self.factory = factory
@@ -142,9 +151,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         self.transport.abortConnection()
 
     def lineReceived(self, line):
-        #warning, this logger line will write out passwords in the log
-        #logger.debug('{0} sent : {1}'.format(self.clientAddr, line))
-        
         #We can receieve 2 types of lines from a client, pool request (pr), machine request(mr)
         request = line.split(':')
         if request[0].startswith('pr'):
@@ -162,7 +168,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
                 self.getAuthLDAP(request[1],request[2]).addCallback(self.writePools)
             except:
                 logger.debug("Could not get Pools")
-                self.transport.write("Err:Could not authenticate.")
+                self.transport.write("Err:Could not authenticate to authentication server")
                 self.transport.loseConnection()
         elif request[0] == 'mr':
             logger.info('User {0} requested a machine in pool {1} from {2}'.format(request[1],request[3],self.clientAddr))
@@ -175,7 +181,9 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
                     logger.debug("Could not get a machine")
                     self.transport.abortConnection()
                 
-
+    ## called after getAuthLDAP
+    # Checks the return to see if the user had previously had a machine
+    # then gives the user a new machine (or their old one) through writeMachine
     def checkSeat(self, previousmachine, deferredmachine, user, pool):
         #Give user machine
         if len(previousmachine) == 0:
@@ -183,6 +191,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         else:
             self.writeMachine(previousmachine, user, pool, True)
 
+    ## Writes a machine to the user, if none are availible, calls getSecondary
     def writeMachine(self, machines, user, pool, restored, secondary=False):
         if restored:
             stringmachine = random.choice(machines)[0]  
@@ -202,7 +211,9 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             stringmachine = random.choice(machines)[0]  
             #write to database to reserve machine
             self.reserveMachine(user, pool, stringmachine).addBoth(self.verifyReserve, user, pool, stringmachine)
-            
+    
+    ## Makes sure we can assign that machine, if all went well, we give them the machine
+    # This is needed so we make sure we have set aside the machine before we give it to the Client
     def verifyReserve(self, error, user, pool, machine):
         #if we get an error, then we had a collision, so give them another machine
         if error:
@@ -215,11 +226,13 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             self.transport.write(machine)
             self.transport.loseConnection()
 
+    ## Sends the SQL request to reserve the machine for the user
     def reserveMachine(self, user, pool, machine):
         opstring = "INSERT INTO current VALUES (%s, %s, %s, False, CURRENT_TIMESTAMP)"
         logger.debug("Reserving {0} in pool {1} for {2}".format(machine, pool, user))
         return dbpool.runQuery(opstring, (user, pool, machine))
-
+    
+    ## Sends the list of pools accesable to the user
     def writePools(self, listpools):
         logger.debug("Sending {0} to {1}".format(listpools, self.clientAddr))
         for item in listpools:
@@ -227,6 +240,8 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             self.transport.write("\n")
         self.transport.loseConnection()
     
+    ## Attempts to authenticate the user to the LDAP server via their username and password
+    # Returns a touple of deffereds to getPreviousSession and getMachine
     def getAuthLDAP(self, user, password, requestedpool = None):
         auth = True
         groups = []
@@ -294,11 +309,13 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             #returned touple of (deferred from getprevsession, deferred from getmachine)
             return (self.getPreviousSession(user,requestedpool), self.getMachine(groups, auth, requestedpool))
     
+    ## Runs the SQL to see if the user already has a machine checked out
     def getPreviousSession(self, user, requestedpool):
         #only find a previous machine if it had been in the same pool, and confirmed
         querystring = "SELECT machine FROM current WHERE (user = %s AND name = %s AND confirmed = True)"
         return dbpool.runQuery(querystring, (user, requestedpool))
     
+    ## Runs the SQL to get machines the user could use
     def getMachine(self, groups, auth, requestedpool):
         r = defer.Deferred
         if auth and (len(groups) > 0):
@@ -314,12 +331,14 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             querystring = "SELECT machines.machine FROM machines INNER JOIN pools ON pools.name = machines.name WHERE ((machines.machine NOT IN (SELECT machine FROM current)) AND (active = True) AND (status = 'Okay') AND (pools.name = %s) AND (groups IS NULL) AND (machines.deactivated = False) AND (pools.deactivated = False))"
             r = dbpool.runQuery(querystring, (requestedpool,))
         return r
-
+    
+    ## finds a pools secondary pools
     def getSecondary(self, requestedpool):
         #get secondary pools for this pool
         querystring = "SELECT secondary FROM pools WHERE name=%s"
         return dbpool.runQuery(querystring, (requestedpool,))
 
+    ## gets machines in a secondary pool
     def getSecondaryMachines(self, pools, user, originalpool):
         #parse secondary pools and do a machine request
         if pools[0][0] is not None:
@@ -335,6 +354,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         r = dbpool.runQuery(querystring, args)
         r.addBoth(self.writeMachine, user, originalpool, False, True)
 
+    ## runs the SQL to see what pools the user can access
     def getPools(self, groups, auth):
         poolset = set()
         r = defer.Deferred
@@ -355,10 +375,12 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 #       transport.pauseProducting()
 #       self.factory.addPausedTransport(self, transport)
 
+## A place to direct blacklisted addresses, or if we have too many connections at once
 class DoNothing(Protocol):
     def makeConnection(self, transport):
         transport.abortConnection()
 
+## creates a HandleClient for each Client connection
 class HandleClientFactory(Factory):
     
     def __init__(self):
@@ -397,6 +419,8 @@ class HandleClientFactory(Factory):
 #           newProtocol.makeConnection(transport)
 #           transport.resumeProducing()
 
+## Checks the machines table for inactive machines, and sets them as so
+# Called periodically
 def checkMachines():
     logger.debug("Checking Machines")
     #check for inactive machines
@@ -409,12 +433,14 @@ def checkMachines():
     querystring = "DELETE FROM current WHERE (connecttime < DATE_SUB(NOW(), INTERVAL %s SECOND))"
     r2 = dbpool.runQuery(querystring, (settings.get("Reserve_Time"),))
 
+## Gets the blacklist from the database, and updates is
 def cacheBlacklist():
     logger.debug("Cacheing the Blacklist")
     querystring = "SELECT blacklist.address FROM blacklist LEFT JOIN whitelist ON blacklist.address = whitelist.address WHERE (banned = True AND whitelist.address IS NULL)"
     r = dbpool.runQuery(querystring)
     r.addBoth(setBlacklist)
 
+## Sets the blacklist variable, given data from the Database
 def setBlacklist(data):
     global blacklist
     blacklist = set()
@@ -423,6 +449,7 @@ def setBlacklist(data):
         blacklist.add(item[0])
         logger.debug(item[0])
 
+## Chooses a LDAP/Active Directory server
 def setAuthServer(results):
     results = results[0]
     if not results[0].payload.target:
@@ -432,6 +459,7 @@ def setAuthServer(results):
         logger.info("Using LDAP server {0}".format(str(results[0].payload.target)))
         settings["Auth_Server"] = str(results[0].payload.target)
 
+## Does a DNS service request for an LDAP service
 def getAuthServer():
     logger.debug("Getting LDAP server from AUTO")
     domain = settings.get("Auth_Auto").replace('AUTO', '', 1)
@@ -440,6 +468,7 @@ def getAuthServer():
     d = resolver.lookupService(domain)
     d.addCallback(setAuthServer)
 
+## Reads the configuration file
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
     global settings
@@ -527,6 +556,7 @@ def readConfigFile():
     if not settings.get("One_Connection"):
         settings["One_Connection"] = 'True'
 
+## gets additional settings overrides from the Database
 def readDatabaseSettings():
     #This needs to be a "blocked" call to ensure order, it can't be asynchronous.
     querystring = "SELECT * FROM settings"
@@ -551,11 +581,13 @@ def readDatabaseSettings():
     con.commit()
     dbpool.disconnect(con)
 
+## See if we need to restart because Database settings have changed
 def checkSettingsChanged():
     querystring = "select COUNT(*) FROM settings WHERE (applied = False OR applied IS NULL)"
     r = dbpool.runQuery(querystring)
     r.addBoth(getSettingsChanged)
 
+## Sees the result from checkSettingsChanged, and acts accordingly
 def getSettingsChanged(data):
     if int(data[0][0]) > 0:
         logger.error("Interface settings had changed... Restarting the Server")
@@ -563,6 +595,7 @@ def getSettingsChanged(data):
         #should probably sleep here for a few seconds?
         os.execv(__file__, sys.argv)
 
+## A logging.Handler class for writing out log to the Database
 class MySQLHandler(logging.Handler):
     #This is our logger to the Database, it will handle out logger calls
     def __init__(self):
@@ -571,11 +604,13 @@ class MySQLHandler(logging.Handler):
     def emit(self, record):
         querystring = "INSERT INTO log VALUES(NOW(), %s, %s, DEFAULT)"
         r = dbpool.runQuery(querystring, (str(record.getMessage()), record.levelname))
-   
+
+## Makes sure the log doesn't grow too big, removes execess
 def pruneLog():
     querystring = "DELETE FROM log WHERE id <= (SELECT id FROM (SELECT id FROM log ORDER BY id DESC LIMIT 1 OFFSET %s)foo )"
     r = dbpool.runQuery(querystring, (int(settings.get("Log_Keep")),))
 
+## Starts the logging
 def setLogging():
     global logger
     loglevel = int(settings.get("Log_Amount"))
