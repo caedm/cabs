@@ -44,17 +44,12 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
     
     def connectionMade(self):
         self.agentAddr = self.transport.getPeer()
-        logger.debug('Connection made with {0}'.format(self.agentAddr))
         self.factory.numConnections = self.factory.numConnections + 1   
-        logger.debug('There are {0} Agent connections'.format(self.factory.numConnections))
 
     def connectionLost(self, reason):
-        logger.debug('Connection lost with {0} due to {1}'.format(self.agentAddr,reason))
         self.factory.numConnections = self.factory.numConnections - 1       
-        logger.debug('There are {0} Agent connections'.format(self.factory.numConnections))
 
     def lineLengthExceeded(self, line):
-        logger.error('Agent at {0} exceeded the Line Length'.format(self.agentAddr))
         self.transport.abortConnection()
 
     def lineReceived(self, line):
@@ -75,9 +70,6 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
                 elif status.endswith('3'):
                     status = status.rstrip('3') + ' : Okay'
 
-                logger.debug("The process on {0} is {1}".format(report[1], status))
-
-            logger.debug('There are {0} users on {1}'.format(len(report)-2, report[1]))
             #Mark the machine as active, and update timestamp
             querystring = "UPDATE machines SET active = True, last_heartbeat = NOW(), status = %s WHERE machine = %s"
             r1 = dbpool.runQuery(querystring, (status, report[1]))
@@ -90,7 +82,7 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
                 for item in range(2, len(report)):
                     users += report[item] + ', '
                 users = users[0:-2]
-                logger.info("Machine {0} reports user {1}".format(report[1],users))
+                logger.debug("Machine {0} reports user {1}".format(report[1],users))
                 regexstr = ''
                 for item in range(2, len(report)):
                     regexstr += '(^'
@@ -137,17 +129,12 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
     def connectionMade(self):
         #if auto then add to blacklist
         self.clientAddr = self.transport.getPeer()
-        logger.debug('Connection made with {0}'.format(self.clientAddr))
         self.factory.numConnections = self.factory.numConnections + 1
-        logger.debug('There are {0} Client connections'.format(self.factory.numConnections))
     
     def connectionLost(self, reason):
-        logger.debug('Connection lost with {0} due to {1}'.format(self.clientAddr,reason))
         self.factory.numConnections = self.factory.numConnections - 1
-        logger.debug('There are {0} Client connections'.format(self.factory.numConnections))
 
     def lineLengthExceeded(self, line):
-        logger.error('Client at {0} exceeded the Line Length'.format(self.clientAddr))
         self.transport.abortConnection()
 
     def lineReceived(self, line):
@@ -156,29 +143,23 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         if request[0].startswith('pr'):
             if request[0].endswith('v') and settings.get('RGS_Ver_Min') != 'False':
                 #check version
-                print "###################################" + settings.get('RGS_Ver_Min')
-                logger.debug('User {0} at {1} is using RGS {2}'.format(request[1], self.clientAddr, request[-1]))
                 if request[-1] < settings.get('RGS_Ver_Min'):
                     self.transport.write("Err:Sorry, your RGS reciever is out of date, it should be at least {0}".format(settings.get('RGS_Ver_Min')))
                     self.transport.loseConnection()
-            logger.info('User {0} requested pool info from {1}'.format(request[1],self.clientAddr))
             #authenticate_user
             #get pools for user
             try:
                 self.getAuthLDAP(request[1],request[2]).addCallback(self.writePools)
             except:
-                logger.debug("Could not get Pools")
                 self.transport.write("Err:Could not authenticate to authentication server")
                 self.transport.loseConnection()
         elif request[0] == 'mr':
-            logger.info('User {0} requested a machine in pool {1} from {2}'.format(request[1],request[3],self.clientAddr))
             if (request[3] is not None) and (request[3] != ''):
                 #check authentication and get machine for the user
                 try:
                     deferredtouple = self.getAuthLDAP(request[1],request[2],request[3])
                     deferredtouple[0].addCallback(self.checkSeat,deferredtouple[1],request[1],request[3])
                 except:
-                    logger.debug("Could not get a machine")
                     self.transport.abortConnection()
                 
     ## called after getAuthLDAP
@@ -195,7 +176,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
     def writeMachine(self, machines, user, pool, restored, secondary=False):
         if restored:
             stringmachine = random.choice(machines)[0]  
-            logger.info("Restored machine {0} in pool {1} to {2}".format(stringmachine, pool, user))
+            logger.info("Restored {0} to {1}".format(stringmachine, user))
             self.transport.write(stringmachine)
             self.transport.loseConnection()
             
@@ -204,7 +185,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             if not secondary:
                 self.getSecondary(pool).addBoth(self.getSecondaryMachines, user, pool)
             else:
-                logger.info("Could not find an open machine in {0} or its secondaries".format(pool))
                 self.transport.write("Err:Sorry, There are no open machines in {0}.".format(pool))
                 self.transport.loseConnection()
         else:
@@ -218,23 +198,20 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         #if we get an error, then we had a collision, so give them another machine
         if error:
             #don't send anything, client will try again a few times
-            logger.warning("Tried to reserve machine {0} but was unable".format(machine))
             self.transport.write("Err:RETRY")
             self.transport.loseConnection()
         else:
-            logger.info("Gave machine {0} in pool {1} to {2}".format(machine, pool, user))
+            logger.info("Gave {0} to {1}".format(machine, user))
             self.transport.write(machine)
             self.transport.loseConnection()
 
     ## Sends the SQL request to reserve the machine for the user
     def reserveMachine(self, user, pool, machine):
         opstring = "INSERT INTO current VALUES (%s, %s, %s, False, CURRENT_TIMESTAMP)"
-        logger.debug("Reserving {0} in pool {1} for {2}".format(machine, pool, user))
         return dbpool.runQuery(opstring, (user, pool, machine))
     
     ## Sends the list of pools accesable to the user
     def writePools(self, listpools):
-        logger.debug("Sending {0} to {1}".format(listpools, self.clientAddr))
         for item in listpools:
             self.transport.write(str(item))
             self.transport.write("\n")
@@ -252,7 +229,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         else:
             Server = settings.get("Auth_Server")
             if Server.startswith("AUTO"):
-                logger.warning("A user tried to Authenticate before a LDAP server could be found")
                 raise ReferenceError("No AUTO Authentication Server yet")
             if not Server.startswith("ldap"):
                 Server = "ldap://" + Server
@@ -261,8 +237,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             Scope = ldap.SCOPE_SUBTREE
             Attrs = [ settings.get("Auth_Grp_Attr") ]
             UsrAttr = settings.get("Auth_Usr_Attr")
-            
-            logger.debug("Attempting to Autenticate to {0} as {1}".format(Server, DN))
             
             try:
                 if settings.get("Auth_Secure") == 'True':
@@ -278,19 +252,18 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
                     try:
                         l.start_tls_s()
                     except Exception as e:
-                        logger.error("Could not start a TLS connection to the server at {0} with the certificate {1}".format(Server, settings.get("Auth_Cert")))
+                        logger.error("Could not start a TLS connection to the server at {0} with " + \
+                                     "the certificate {1}".format(Server, settings.get("Auth_Cert")))
                         logger.debug("error = {0}".format(e))
                         return
                 l.bind_s(DN, password, ldap.AUTH_SIMPLE)
                 r = l.search(Base, Scope, UsrAttr + '=' + user, Attrs)
                 result = l.result(r,9)      
-                logger.debug("Sucessfully returned {0}".format(result))
                 try:
                     l.unbind()
                 except:
                     pass
             except:
-                logger.warning("User {0} was unable to authenticate.".format(user))
                 return
     
             #get user groups
@@ -299,7 +272,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
                 for x in AttrsDict[key]:
                     #take only the substring after the first =, and before the comma
                     groups.append(x[x.find('=')+1:x.find(',')])
-            logger.debug("User {0} belongs to {1}".format(user, groups))
         
         if requestedpool == None:
             #pool request, give list of user available
@@ -422,7 +394,6 @@ class HandleClientFactory(Factory):
 ## Checks the machines table for inactive machines, and sets them as so
 # Called periodically
 def checkMachines():
-    logger.debug("Checking Machines")
     #check for inactive machines
     if (settings.get("Timeout_time") is not None) or (settings.get("Timeout_time") != 'None'):
         querystring = "UPDATE machines SET active = False, status = NULL WHERE last_heartbeat < DATE_SUB(NOW(), INTERVAL %s SECOND)"
@@ -435,7 +406,6 @@ def checkMachines():
 
 ## Gets the blacklist from the database, and updates is
 def cacheBlacklist():
-    logger.debug("Cacheing the Blacklist")
     querystring = "SELECT blacklist.address FROM blacklist LEFT JOIN whitelist ON blacklist.address = whitelist.address WHERE (banned = True AND whitelist.address IS NULL)"
     r = dbpool.runQuery(querystring)
     r.addBoth(setBlacklist)
@@ -444,10 +414,8 @@ def cacheBlacklist():
 def setBlacklist(data):
     global blacklist
     blacklist = set()
-    logger.debug("Blacklist:")
     for item in data:
         blacklist.add(item[0])
-        logger.debug(item[0])
 
 ## Chooses a LDAP/Active Directory server
 def setAuthServer(results):
@@ -455,13 +423,10 @@ def setAuthServer(results):
     if not results[0].payload.target:
         logger.error("Could not find LDAP server from AUTO")
     else:
-        logger.debug("Found AUTO authentication servers : {0}".format(', '.join(str(x.payload.target) for x in results)))
-        logger.info("Using LDAP server {0}".format(str(results[0].payload.target)))
         settings["Auth_Server"] = str(results[0].payload.target)
 
 ## Does a DNS service request for an LDAP service
 def getAuthServer():
-    logger.debug("Getting LDAP server from AUTO")
     domain = settings.get("Auth_Auto").replace('AUTO', '', 1)
     domain = '_ldap._tcp' + domain
     resolver = client.Resolver('/etc/resolv.conf')
@@ -590,7 +555,6 @@ def checkSettingsChanged():
 ## Sees the result from checkSettingsChanged, and acts accordingly
 def getSettingsChanged(data):
     if int(data[0][0]) > 0:
-        logger.error("Interface settings had changed... Restarting the Server")
         reactor.stop()
         #should probably sleep here for a few seconds?
         os.execv(__file__, sys.argv)
@@ -632,11 +596,6 @@ def setLogging():
     
     logger.addHandler(MySQLHandler())
     
-    logger.info("Server Settings:")
-    for key in settings:
-        if not key.endswith("Pass"):
-            logger.info("{0} = {1}".format(key, settings.get(key)))
-
 def main():
     #Read the settings
     readConfigFile() 
@@ -667,8 +626,6 @@ def main():
         serverstring = "ssl:" + str(settings.get("Client_Port")) + ":privateKey=" + settings.get("SSL_Priv_Key") + ":certKey=" + settings.get("SSL_Cert")
         endpoints.serverFromString(reactor, serverstring).listen(HandleClientFactory())
 
-    logger.warning("Starting Client Server {0}".format(serverstring))
-    
     #Set up Agents listening
     if (settings.get("Use_Agents") == 'True'):
         #Use Agents, so start the listening server
@@ -679,7 +636,6 @@ def main():
             agentserverstring = "ssl:" + str(settings.get("Agent_Port")) + ":privateKey=" + settings.get("SSL_Priv_Key") + ":certKey=" + settings.get("SSL_Cert")
             endpoints.serverFromString(reactor, agentserverstring).listen(HandleAgentFactory())
     
-        logger.warning("Starting Agent Server {0}".format(agentserverstring))
         #Check Machine status every 1/2 Reserve_Time
         checkup = task.LoopingCall(checkMachines)
         checkup.start( int(settings.get("Reserve_Time"))/2 )
@@ -712,8 +668,5 @@ def main():
     #Start Everything
     reactor.run()
 
-
 if __name__ == "__main__":
     main()
-
-
