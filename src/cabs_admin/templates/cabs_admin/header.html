@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href='http://fonts.googleapis.com/css?family=Roboto:150' rel='stylesheet' type='text/css'>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip()
+            $('[data-toggle="popover"]').popover('show')
+        })
+    </script>
+    <title>
+        {% if section_name %}
+            {{ section_name }} - CABS
+        {% else %}
+            CABS
+        {% endif %}
+    </title>
+</head>
+
+<body>
+<nav class="navbar navbar-default">
+    <div class="cointainer-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-main" aria-expanded="false">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="{% url 'cabs_admin:index' %}">CABS Admin Console</a>
+        </div>
+        <div class="collapse navbar-collapse" id="navbar-main">
+            <ul class="nav navbar-nav navbar-right">
+                {% if request.user.is_authenticated %}
+                    <li class="nav"><a href="{% url 'cabs_admin:machinesPage' %}">Machines</a></li>
+                    <li class="nav"><a href="{% url 'cabs_admin:poolsPage' %}">Pools</a></li>
+                    <li class="nav"><a href="{% url 'cabs_admin:settingsPage' %}">Settings</a></li>
+                    <li class="nav"><a href="{% url 'cabs_admin:blacklistPage' %}">Blacklist</a></li>
+                    <li class="nav"><a href="{% url 'cabs_admin:historyPage' %}">History</a></li>
+                    <li class="nav"><a href="{% url 'cabs_admin:logout' %}">Logout</a></li>
+                {% else %}
+                    <li class="nav"><a href="{% url 'cabs_admin:index' %}">Login</a></li>
+                {% endif %}
+            </ul>
+        </div><!-- /.navbar-collapse -->
+    </div><!-- /.container-fluid -->
+</nav>
+
+
+
+
+<div class="container-fluid text-center">
+{% if section_name %}
+    <div id="sub-banner"><div class="container">
+    <h2> {{section_name}} </h2>
+    </div></div>
+{% endif %}
+
+

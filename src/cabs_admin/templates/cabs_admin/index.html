@@ -1,0 +1,19 @@
+{% include "cabs_admin/header.html" %}
+
+{% if permission_error %}
+    <div class="alert alert-danger" role="alert"> {{ permission_error}} </div>
+{% endif %}
+
+<center>
+<hr>
+<br/><br/>
+<h2>
+CABS Admininstrator Console
+<br/>
+<small> {{ permissions }} </small>
+</h2>
+<br/><br/>
+<hr>
+<small> For support contact jordan9001@gmail.com </small>
+
+</center>

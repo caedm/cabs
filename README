@@ -1,0 +1,19 @@
+INSTALLATION
+============
+Install dependencies (including web server):
+
+    apt-get install apache2 python python-{pip,virtualenv,mysqldb,dev} \
+            libldap2-dev libsasl2-dev libmysqlclient18 libmysqlclient-dev \
+            libssl-dev libapache2-mod-wsgi
+
+Set up the environment and project:
+
+    mkdir /var/www/cabsinterface
+    cd /var/www/cabsinterface
+    virtualenv env
+    source env/bin/activate
+    pip install django python-ldap django_auth_ldap MySQL-python dnspython django-reversion
+
+run the install script:
+
+   /path/to/interface/scripts/install.sh 
