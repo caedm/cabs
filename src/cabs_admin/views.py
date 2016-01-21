@@ -108,18 +108,18 @@ def machinesPage(request, selected_machine=None):
                                 deactivated=False, reason="", status="")
             machine_list.append(item)
 
+    sortkey = lambda x: x.machine
     if request.GET.get('sort'):
         sortby = request.GET.get('sort')
-        if sortby == "machine":
-            machine_list = sorted(machine_list, key=lambda x: x.machine)
-        elif sortby == "pool":
-            machine_list = sorted(machine_list, key=lambda x: x.name)
+        if sortby == "pool":
+            sortkey = lambda x: x.pool
         elif sortby == "user":
-            machine_list = sorted(machine_list, key=lambda x: x.user)
+            sortkey = lambda x: x.user
         elif sortby == "status":
-            machine_list = sorted(machine_list, key=lambda x: x.status)
+            sortkey = lambda x: x.status
         elif sortby == "agent":
-            machine_list = sorted(machine_list, key=lambda x: x.active)
+            sortkey = lambda x: x.agent
+    machine_list = sorted(machine_list, key=sortkey)
     
     pool_list = Pools.objects.using('cabs').all().order_by('name')
     
