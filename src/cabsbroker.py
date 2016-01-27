@@ -6,7 +6,6 @@
 # The basic idea is that the HandleAgentFactory and HandleClienFactory make new HandleAgents and Handle Clients
 # There is one per connection, and it processes all communication on that connection, without blocking
 
-
 from twisted import internet
 from twisted.internet.protocol import Factory, Protocol
 from twisted.internet import reactor, endpoints, defer, task
@@ -33,7 +32,6 @@ blacklist = set()
 logger=logging.getLogger()
 
 random.seed()
-
 
 ## Handles each Agent connection
 class HandleAgent(LineOnlyReceiver, TimeoutMixin):
@@ -517,7 +515,9 @@ def readConfigFile():
                 "One_Connection":'True',
                 "Trusted_Clients":None }
 
-    filelocation = os.path.dirname(os.path.abspath(__file__)) + "/cabsbroker.conf"
+    filelocation = "/usr/share/cabsbroker.conf"
+    if not os.path.isfile(filelocation):
+        filelocation = os.path.dirname(os.path.abspath(__file__)) + "/cabsbroker.conf"
     with open(filelocation, 'r') as f:
         for line in f:
             line = line.strip()
@@ -531,6 +531,8 @@ def readConfigFile():
             if key not in settings:
                 print "Warning: unrecognized setting: " + line
                 continue
+            if val == "None":
+                val == None
             settings[key] = val
         f.close()
 

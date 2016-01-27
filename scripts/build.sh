@@ -9,7 +9,7 @@ if [ "$root" = "" ]; then
     exit 1
 fi
 
-version=1.1
+version=1.2
 name=cabsbroker-$version
 dest="$root"/gen/$name
 archive="${dest}.tar.gz"
