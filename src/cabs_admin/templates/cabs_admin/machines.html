@@ -1,7 +1,7 @@
 {% include "cabs_admin/header.html" %}
 
 <table class="table table-bordered table-hover">
-    <tr><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=machine" style="color: #333333">Machine</a></th><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=pool" style="color: #333333">Pool</a></th><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=user" style="color: #333333">User</a></th><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=status" style="color: #333333">Protocol</a></th><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=agent" style="color: #333333">Agent Status</a></th></tr>
+    <tr><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=machine" style="color: #333333">Machine</a></th><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=pool" style="color: #333333">Pool</a></th><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=user" style="color: #333333">User</a></th><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=status" style="color: #333333">Protocol</a></th><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=agent" style="color: #333333">Agent Status</a></th><th>Disable Reason</th></tr>
     <tr></tr>
 {% for machine in machine_list %}
     <tr {% if machine.deactivated %} class="danger" {% elif not machine.active %} class="warning" {% elif machine.name == "No Pool" %} class="info" {% endif %}>
@@ -18,6 +18,10 @@
         {% else %}
             Awaiting Response
         {% endif %}
+        </td>
+        <td> {% if machine.deactivated %}
+                {{ machine.reason }} 
+            {% endif %}
         {% if machine.name != "No Pool" %}
         <input class="btn btn-danger pull-right" type="submit" name="rm" onclick="return confirm('Are you sure you would like to remove {{ machine.machine }}?');" value="X">
         <button type="submit" name="toggle" value="{{machine.machine}}"

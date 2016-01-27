@@ -16,7 +16,6 @@ from django.conf import settings
 
 import collections
 
-
 def can_view(user):
     return True
     if len(settings.CABS_LDAP_CAN_VIEW_GROUPS) == 0:
@@ -151,19 +150,23 @@ def setMachines(request):
 def toggleMachines(request):
     try:
         selected_machine = ""
-        choosen_machine = request.POST['machine']
-        s = Machines.objects.using('cabs').get(machine=choosen_machine)
+        chosen_machine = request.POST['machine']
+        s = Machines.objects.using('cabs').get(machine=chosen_machine)
         if 'rm' in request.POST and can_edit(request.user):
             s.delete(using='cabs')
         else:
+            msg = "{} was ".format(chosen_machine)
             if s.deactivated:
                 s.deactivated = False;
+                s.reason = ""
+                msg += "enabled"
             else:
                 s.deactivated = True;
                 #add a location for commenting on reason
                 selected_machine = s.machine;
+                msg += "disabled"
             s.save(using='cabs')
-            
+            Log(msg_type="INFO", message=msg).save(using='cabs')
     except:
         return HttpResponseRedirect(reverse('cabs_admin:machinesPage'))
     else:
@@ -176,11 +179,16 @@ def toggleMachines(request):
 @user_passes_test(can_disable, login_url='/admin/')
 def commentMachines(request):
     try:
-        choosen_machine = request.POST['machine']
+        chosen_machine = request.POST['machine']
         new_reason = request.POST['reason']
-        s = Machines.objects.using('cabs').get(machine=choosen_machine)
+        s = Machines.objects.using('cabs').get(machine=chosen_machine)
         s.reason = new_reason
         s.save(using='cabs')
+        # TODO don't find machine by message text. Get a parameter from toggleMachines() instead.
+        logMsg = Log.objects.using('cabs').filter(message="{} was disabled".format(chosen_machine)).order_by(
+                '-id')[0]
+        logMsg.message += ". Reason: {}".format(new_reason)
+        logMsg.save()
     except:
         return HttpResponseRedirect(reverse('cabs_admin:machinesPage'))
     else:
@@ -227,17 +235,22 @@ def setPools(request):
 def togglePools(request): 
     try:
         selected_pool = ""
-        choosen_pool = request.POST['pool']
-        s = Pools.objects.using('cabs').get(name=choosen_pool)
+        chosen_pool = request.POST['pool']
+        s = Pools.objects.using('cabs').get(name=chosen_pool)
         if 'rm' in request.POST and can_edit(request.user):
             s.delete(using='cabs')
         else:
+            msg = "Pool {} was ".format(chosen_pool)
             if s.deactivated:
                 s.deactivated = False;
+                s.reason = ""
+                msg += "enabled"
             else:
                 s.deactivated = True;
                 selected_pool = s.name;
+                msg += "disabled"
             s.save(using='cabs')
+            Log(msg_type="INFO", message=msg).save(using='cabs')
     except:
         return HttpResponseRedirect(reverse('cabs_admin:poolsPage'))
     else:
@@ -250,11 +263,16 @@ def togglePools(request):
 @user_passes_test(can_disable, login_url='/admin/')
 def commentPools(request):
     try:
-        choosen_pool = request.POST['pool']
+        chosen_pool = request.POST['pool']
         new_reason = request.POST['reason']
-        s = Pools.objects.using('cabs').get(name=choosen_pool)
+        s = Pools.objects.using('cabs').get(name=chosen_pool)
         s.reason = new_reason
         s.save(using='cabs')
+        # TODO don't find machine by message text. Get a parameter from togglePools() instead.
+        logMsg = Log.objects.using('cabs').filter(message="Pool {} was disabled".format(chosen_pool)).order_by(
+                '-id')[0]
+        logMsg.message += ". Reason: {}".format(new_reason)
+        logMsg.save()
     except:
         return HttpResponseRedirect(reverse('cabs_admin:poolsPage'))
     else:
@@ -265,10 +283,10 @@ def commentPools(request):
 def settingsPage(request):
     settings_list = Settings.objects.using('cabs').all()
     try:
-        option_choosen = request.GET['setting']
+        option_chosen = request.GET['setting']
     except:
-        option_choosen = None
-    context = {'section_name': 'Change Settings', 'settings_list': settings_list, 'option_choosen': option_choosen}
+        option_chosen = None
+    context = {'section_name': 'Change Settings', 'settings_list': settings_list, 'option_choosen': option_chosen}
     return render(request, 'cabs_admin/settings.html', context)
 
 @login_required
@@ -294,8 +312,8 @@ def setSettings(request):
 @user_passes_test(can_edit, login_url='/admin/')
 def rmSettings(request):
     try:
-        choosen_setting = request.POST['setting']
-        s = Settings.objects.using('cabs').get(setting=choosen_setting)
+        chosen_setting = request.POST['setting']
+        s = Settings.objects.using('cabs').get(setting=chosen_setting)
         s.delete(using='cabs')
     except:
         return HttpResponseRedirect(reverse('cabs_admin:settingsPage'))
@@ -334,16 +352,16 @@ def setBlacklist(request):
 @user_passes_test(can_edit, login_url='/admin/')
 def toggleBlacklist(request): 
     try:
-        choosen_address = request.POST['address']
-        s = Blacklist.objects.using('cabs').get(address=choosen_address)
+        chosen_address = request.POST['address']
+        s = Blacklist.objects.using('cabs').get(address=chosen_address)
         if 'rm' in request.POST:
             s.delete(using='cabs')
         elif 'whitelist' in request.POST:
             s.delete(using='cabs')
             try:
-                ss = Whitelist.objects.using('cabs').get(address=choosen_address)
+                ss = Whitelist.objects.using('cabs').get(address=chosen_address)
             except:
-                ss = Whitelist(address=choosen_address)
+                ss = Whitelist(address=chosen_address)
             ss.save(using='cabs')
         else:
             if s.banned:
@@ -379,8 +397,8 @@ def setWhitelist(request):
 @user_passes_test(can_edit, login_url='/admin/')
 def rmWhitelist(request):
     try:
-        choosen_address = request.POST['address']
-        s = Whitelist.objects.using('cabs').get(address=choosen_address)
+        chosen_address = request.POST['address']
+        s = Whitelist.objects.using('cabs').get(address=chosen_address)
         s.delete(using='cabs')
     except:
         return HttpResponseRedirect(reverse('cabs_admin:blacklistPage'))
