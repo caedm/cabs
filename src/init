@@ -1,0 +1,52 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          cabs
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Connection Automation Brokerage System (CABS)
+# Description:       This script starts, restarts, or stops cabs_server
+### END INIT INFO
+
+# Author: CAEDM Linux <unix@et.byu.edu>
+#
+
+DESC="Connection Automation Brokerage System (CABS)"
+DAEMON=/usr/local/sbin/cabsbrokerd
+
+lockfile=/var/lock/cabs_server
+#srcdir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+start() {
+    if [ ! -f $lockfile ]; then
+        echo "Starting CABS Broker"
+        nohup $DAEMON & echo $! > $lockfile
+    else
+        echo "Lockfile exists already. Try restart."
+    fi
+}
+
+stop() {
+    echo "Stopping CABS Broker"
+    kill -9 $( cat $lockfile )
+    rm -f $lockfile
+}
+
+case "$1" in
+    start)
+        start
+    ;;
+    stop)
+        stop
+    ;;
+    restart|reload)
+        stop
+        start
+    ;;
+    *)
+        echo "Usage: $0 {start|stop|reload}"
+        exit 1
+esac
+exit 0
+

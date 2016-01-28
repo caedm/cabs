@@ -1,15 +1,22 @@
 #!/bin/bash
 set -e
-USAGE="$0 [-d|--dry-run] [-f|--force]
+USAGE="$0 [-d|--dry-run] [-f|--force] [-n|--no-conf]
 $0 [-h|--help]
 
 Installs the CABS broker.
 
-  -f, --force: rename existing config files instead of installing with .new
-               extension"
+  -h, --help:    show this help message and exit.
+  -d, --dry-run: show what commands the installer will run without actually
+                 doing anything.
+  -f, --force:   rename existing config files instead of installing with .new
+                 extension.
+  -n, --no-conf: don't install conf files at all.
+"
 ERR_OPTION=1
 ERR_ROOT=2
-echo=
+ERR_BAD_PROGRAMMER=3
+force=false
+noconf=false
 for i in "$@"; do
     case $i in
     -d|--dry-run)
@@ -18,20 +25,29 @@ for i in "$@"; do
     -f|--force)
         force=true
         ;;
+    -n|--no-conf)
+        noconf=true
+        ;;
     -h|--help)
         echo "$USAGE"
         exit 0
         ;;
     *)
-        echo invalid option: $i
+        echo invalid option: $i > /dev/stderr
         exit $ERR_OPTION
         ;;
     esac
 done
 
 function install_conf {
+    if $noconf; then
+        return
+    fi
     src="$1"
     dest="$2"
+    if [ -d "$dest" ]; then
+        dest="$dest/$(basename "$src")"
+    fi
     if [ -e "$dest" ]; then
         if ! $force && ! cmp -s "$src" "$dest"; then
             $echo install -vm 644 "$src" "$dest".new
@@ -50,11 +66,20 @@ if [ $UID -ne 0 -a ! "$echo" ]; then
     exit $ERR_ROOT
 fi
 
-$echo cd "$( dirname "${BASH_SOURCE[0]}" )"
-$echo mkdir -p /usr/share/cabsbroker/
-for f in res/{agent_cert.pem,broker_server.pem,caedm_ad.pem,trusted_clients.pem}; do
-    $echo install -vm 644 $f /usr/share/cabsbroker/
+cd "$(dirname "${BASH_SOURCE[0]}")"
+root="$(pwd | sed 's/\(.*broker\/\).*/\1/')"
+if [ "$root" = "" ]; then
+    echo "Couldn't find cabsbroker project root. Project root must be named"
+    echo "\`broker\`."
+    exit 1
+fi
+$echo cd "$root"
+
+$echo mkdir -p /usr/local/share/cabsbroker/
+for f in ./res/{agent_cert.pem,broker_server.pem,caedm_ad.pem,trusted_clients.pem}; do
+    $echo install -vm 644 $f /usr/local/share/cabsbroker/
 done
-install_conf cabsbroker.conf /usr/share/cabsbroker/cabsbroker.conf
-$echo install -v src/cabsbroker.py /usr/bin/cabsbrokerd
+install_conf ./res/cabsbroker.conf /etc/
+$echo install -v ./src/cabsbroker.py /usr/local/sbin/cabsbrokerd
+$echo install -v ./src/init /etc/init.d/cabs
 echo Installation complete.
