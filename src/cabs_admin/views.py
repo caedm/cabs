@@ -110,13 +110,13 @@ def machinesPage(request, selected_machine=None):
     if request.GET.get('sort'):
         sortby = request.GET.get('sort')
         if sortby == "pool":
-            sortkey = lambda x: x.pool
+            sortkey = lambda x: x.name
         elif sortby == "user":
             sortkey = lambda x: x.user
         elif sortby == "status":
             sortkey = lambda x: x.status
         elif sortby == "agent":
-            sortkey = lambda x: x.agent
+            sortkey = lambda x: x.active
     machine_list = sorted(machine_list, key=sortkey)
     
     pool_list = Pools.objects.using('cabs').all().order_by('name')
