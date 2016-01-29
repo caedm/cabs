@@ -383,11 +383,12 @@ class CommandHandler(LineOnlyReceiver):
     tell_agent:(restart|reboot):<hostname>
     autoit:(enable|disable):<hostname>
     """
+
     def lineReceived(self, line):
+        logger.info("received command from {}: {}".format(self.transport.getPeer(), line.strip()))
         segments = line.split(':')
         command = segments[0]
         args = segments[1:]
-        print "received command: " + command
         if command == "query":
             verbose = len(args) >= 1 and args[0] == 'verbose'
             response = dbpool.runQuery(
@@ -407,7 +408,8 @@ class CommandHandler(LineOnlyReceiver):
 
     @defer.inlineCallbacks
     def autoit(self, action, hostname):
-        result = yield dbpool.runQuery("SELECT deactivated,reason FROM machines WHERE machine = %s", (hostname,))
+        result = yield dbpool.runQuery("SELECT deactivated,reason FROM machines WHERE machine = %s",
+                                       (hostname,))
         if len(result) == 0:
             self.transport.write("unknown machine: " + hostname)
             self.tranport.loseConnection()
@@ -429,11 +431,10 @@ class CommandHandler(LineOnlyReceiver):
     def tell_agent(self, command, hostname):
         port = int(settings["Agent_Command_Port"])
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print "sending a command to {} on port {}".format(hostname, port)
         try:
             s.connect((hostname, port))
         except socket.error:
-            print "couldn't send command to agent"
+            logger.warning("couldn't send command to " + hostname)
             self.transport.write("Couldn't connect to {} on port {}.".format(hostname, port))
             self.transport.loseConnection()
             return
@@ -445,10 +446,8 @@ class CommandHandler(LineOnlyReceiver):
                     keyfile=settings["Broker_Priv_Key"], cert_reqs=ssl.CERT_REQUIRED,
                     ca_certs=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
         s_wrapped.sendall(command + "\r\n")
-        print "Told " + hostname + ": " + command
 
     def respond_query(self, response, verbose):
-        print "sending response: " + repr(response)
         str_response = ""
         if verbose:
             str_response += "pool, machine, status, has users, deactivated, reason\n"
@@ -643,6 +642,7 @@ if __name__ == "__main__":
     readDatabaseSettings()
     #SetLogging
     setLogging()
+    logger.info("starting up")
 
     if settings.get("Broker_Priv_Key") is None or settings.get("Broker_Cert") is None:
         #Create Client Listening Server
