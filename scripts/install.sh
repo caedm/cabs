@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-USAGE="$0 [-d|--dry-run] [-f|--force] [-n|--no-conf]
+USAGE="$0 [-d|--dry-run]
 $0 [-h|--help]
 
 Installs the CABS broker.
@@ -8,9 +8,6 @@ Installs the CABS broker.
   -h, --help:    show this help message and exit.
   -d, --dry-run: show what commands the installer will run without actually
                  doing anything.
-  -f, --force:   rename existing config files instead of installing with .new
-                 extension.
-  -n, --no-conf: don't install conf files at all.
 "
 ERR_OPTION=1
 ERR_ROOT=2
@@ -22,12 +19,6 @@ for i in "$@"; do
     -d|--dry-run)
         echo=echo
         ;;
-    -f|--force)
-        force=true
-        ;;
-    -n|--no-conf)
-        noconf=true
-        ;;
     -h|--help)
         echo "$USAGE"
         exit 0
@@ -38,27 +29,6 @@ for i in "$@"; do
         ;;
     esac
 done
-
-function install_conf {
-    if $noconf; then
-        return
-    fi
-    src="$1"
-    dest="$2"
-    if [ -d "$dest" ]; then
-        dest="$dest/$(basename "$src")"
-    fi
-    if [ -e "$dest" ]; then
-        if ! $force && ! cmp -s "$src" "$dest"; then
-            $echo install -vm 644 "$src" "$dest".new
-            echo $(tput bold)warning: $(basename "$dest") installed as $dest.new$(tput sgr0)
-        else
-            $echo install -vm 644 --backup=simple "$src" "$dest"
-        fi
-    else
-        $echo install -vm 644 "$src" "$dest"
-    fi
-}
 
 [ "$echo" ] && echo DRY RUN
 if [ $UID -ne 0 -a ! "$echo" ]; then
@@ -79,7 +49,8 @@ $echo mkdir -p /usr/local/share/cabsbroker/
 for f in ./res/{agent_cert.pem,broker_server.pem,caedm_ad.pem,trusted_clients.pem}; do
     $echo install -vm 644 $f /usr/local/share/cabsbroker/
 done
-install_conf ./res/cabsbroker.conf /etc/
+$echo install -vm 644 ./res/cabsbroker.conf /usr/local/share/cabsbroker/
 $echo install -v ./src/cabsbroker.py /usr/local/sbin/cabsbrokerd
-$echo install -v ./src/init /etc/init.d/cabs
+$echo install -vm 644 ./src/cabs.service /etc/systemd/system/
 echo Installation complete.
+echo "Don't forget to run $(tput bold)\`systemctl start cabs; systemctl enable cabs\`$(tput sgr0)."

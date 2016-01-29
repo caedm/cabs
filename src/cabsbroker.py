@@ -26,12 +26,47 @@ import ssl
 
 from time import sleep
 
-#global blacklist set
 blacklist = set()
-#make a logger
 logger=logging.getLogger()
 
 random.seed()
+
+settings = {"Max_Clients":'62',
+            "Max_Agents":'120',
+            "Client_Port":'18181',
+            "Agent_Port":'18182',
+            "Command_Port":'18183',
+            "Agent_Command_Port":'18185',
+            "Use_Agents":'True',
+            "Database_Addr":"127.0.0.1",
+            "Database_Port":3306,
+            "Database_Usr":"CABS",
+            "Database_Pass":"BACS",
+            "Database_Name":"test",
+            "Reserve_Time":'360',
+            "Timeout_Time":'540',
+            "Use_Blacklist":'False',
+            "Auto_Blacklist":'False',
+            "Auto_Max":'300',
+            "Auth_Server":'None',
+            "Auth_Prefix":'',
+            "Auth_Postfix":'',
+            "Auth_Base":'None',
+            "Auth_Usr_Attr":'None',
+            "Auth_Grp_Attr":'None',
+            "Auth_Secure":'False',
+            "Cert_Dir":"/usr/share/cabsbroker/",
+            "Auth_Cert":None,
+            "Broker_Priv_Key":None,
+            "Broker_Cert":None,
+            "Agent_Cert":None,
+            "RGS_Ver_Min":'False',
+            "Verbose_Out":'False',
+            "Log_Amount":'4',
+            "Log_Keep":'500',
+            "Log_Time":'1800',
+            "One_Connection":'True',
+            "Trusted_Clients":None }
 
 ## Handles each Agent connection
 class HandleAgent(LineOnlyReceiver, TimeoutMixin):
@@ -130,7 +165,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
     def connectionMade(self):
         #if auto then add to blacklist
         self.clientAddr = self.transport.getPeer()
-        logger.debug('Connection made with {0}'.format(self.clientAddr))
         self.factory.numConnections = self.factory.numConnections + 1
 
     def connectionLost(self, reason):
@@ -162,9 +196,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
     def pool_request(self, user, password, version=None):
         if version is not None and settings.get('RGS_Ver_Min') != 'False':
             #check version
-            print "###################################" + settings.get('RGS_Ver_Min')
-            logger.debug('User {0} at {1} is using RGS {2}'.format(
-                    user, self.clientAddr, version))
             if version < settings.get('RGS_Ver_Min'):
                 self.transport.write("Err:Sorry, your RGS reciever is out of date, " + \
                         "it should be at least {0}".format(settings.get('RGS_Ver_Min')))
@@ -476,48 +507,10 @@ def getAuthServer():
 ## Reads the configuration file
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
-    global settings
-
-    settings = {"Max_Clients":'62',
-                "Max_Agents":'120',
-                "Client_Port":'18181',
-                "Agent_Port":'18182',
-                "Command_Port":'18183',
-                "Agent_Command_Port":'18185',
-                "Use_Agents":'True',
-                "Database_Addr":"127.0.0.1",
-                "Database_Port":3306,
-                "Database_Usr":"CABS",
-                "Database_Pass":"BACS",
-                "Database_Name":"test",
-                "Reserve_Time":'360',
-                "Timeout_Time":'540',
-                "Use_Blacklist":'False',
-                "Auto_Blacklist":'False',
-                "Auto_Max":'300',
-                "Auth_Server":'None',
-                "Auth_Prefix":'',
-                "Auth_Postfix":'',
-                "Auth_Base":'None',
-                "Auth_Usr_Attr":'None',
-                "Auth_Grp_Attr":'None',
-                "Auth_Secure":'False',
-                "Cert_Dir":"/usr/share/cabsbroker/",
-                "Auth_Cert":None,
-                "Broker_Priv_Key":None,
-                "Broker_Cert":None,
-                "Agent_Cert":None,
-                "RGS_Ver_Min":'False',
-                "Verbose_Out":'False',
-                "Log_Amount":'4',
-                "Log_Keep":'500',
-                "Log_Time":'1800',
-                "One_Connection":'True',
-                "Trusted_Clients":None }
-
-    filelocation = "/usr/share/cabsbroker.conf"
-    if not os.path.isfile(filelocation):
-        filelocation = os.path.dirname(os.path.abspath(__file__)) + "/cabsbroker.conf"
+    for filelocation in ["/etc/cabsbroker.conf", "/usr/local/share/cabsbroker.conf",
+                         os.path.dirname(os.path.abspath(__file__)) + "/cabsbroker.conf"]:
+        if os.path.isfile(filelocation):
+            break
     with open(filelocation, 'r') as f:
         for line in f:
             line = line.strip()
