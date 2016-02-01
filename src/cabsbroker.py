@@ -23,6 +23,7 @@ import random
 import os
 import socket
 import ssl
+import re
 
 from time import sleep
 
@@ -87,53 +88,43 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
 
     def lineReceived(self, line):
         #types of reports = status report (sr) and status process report (spr)
+        # line: "sr:<hostname>:[user1]:[user2]:[...]
+        #       "spr:<proc_status>:<hostname>:[user1]:[user2]:[...]
         report = line.split(':')
-        if report[0] == 'sr' or report[0] == 'spr':
-            status = None
-            if report[0] == 'spr':
-                status = report.pop(1)
-                if status.endswith('-1'):
-                    status = status.rstrip('-1') + ' : Unknown'
-                elif status.endswith('0'):
-                    status = status.rstrip('0') + ' : Not Found'
-                elif status.endswith('1'):
-                    status = status.rstrip('1') + ' : Not Running'
-                elif status.endswith('2'):
-                    status = status.rstrip('2') + ' : Not Connected'
-                elif status.endswith('3'):
-                    status = status.rstrip('3') + ' : Okay'
+        reportType = report[0]
+        procStatus = None
+        if reportType == "spr":
+            procStatus = report.pop(1)
+        host = report[1]
+        users = report[2:]
 
-            #Mark the machine as active, and update timestamp
-            querystring = "UPDATE machines SET active = True, last_heartbeat = NOW(), " + \
-                    "status = %s WHERE machine = %s"
-            r1 = dbpool.runQuery(querystring, (status, report[1]))
-            #confirm any users that reserved the machine if they are there, or unconfirm them if they are not
-            #For now we don't support assigning multiple users per machine, so only one should be on at a time
-            #but, if we do have multiple, let it be so
-            #Try to write an entry under the first listed users name, if
-            #duplicate machine update the old entry to confirmed
-            users = ''
-            if len(report) > 2:
-                for item in range(2, len(report)):
-                    users += report[item] + ', '
-                users = users[0:-2]
-                logger.debug("Machine {0} reports user {1}".format(report[1],users))
-                regexstr = ''
-                for item in range(2, len(report)):
-                    regexstr += '(^'
-                    regexstr += report[item]
-                    regexstr += '$)|'
-                regexstr = regexstr[0:-1]
-                if settings.get("One_Connection") == 'True' or settings.get("One_Connection") == True:
-                    querystring = "INSERT INTO current VALUES (%s, NULL, %s, True, NOW()) ON DUPLICATE " + \
-                                    "KEY UPDATE confirmed = True, connecttime = Now(), user = %s"
-                    r2 = dbpool.runQuery(querystring,(report[2],report[1],users))
-                querystring = "UPDATE current SET confirmed = True, connecttime = Now() " + \
-                                "WHERE (machine = %s AND user REGEXP %s)"
-                r2 = dbpool.runQuery(querystring,(report[1],regexstr))
-            else:
-                querystring = "DELETE FROM current WHERE machine = %s"
-                r2 = dbpool.runQuery(querystring, (report[1],))
+        if reportType != 'sr' and reportType != 'spr':
+            return
+        self.updateMachine(host, procStatus)
+        self.updateCurrent(host, users)
+
+    def updateMachine(self, host, procStatus):
+        if procStatus is not None:
+            procName, statusId = re.search(r'([^\d-]*)(-?\d+)', procStatus).groups()
+            statusId = int(statusId)
+            # "Unknown" is statusMap[-1]
+            statusMap = ["Not Found", "Not Running", "Not Connected", "Okay", "Unknown"]
+            procStatus = "{} : {}".format(procName, statusMap[statusId])
+        query = "UPDATE machines SET active = True, last_heartbeat = NOW(), " + \
+                "status = %s WHERE machine = %s"
+        dbpool.runQuery(query, (procStatus, host))
+
+    def updateCurrent(self, host, users):
+        if users:
+            users = ", ".join(users)
+            logger.debug("Machine {0} reports user {1}".format(host, users))
+            querystring = "INSERT INTO current (user, machine, confirmed) " + \
+                          "VALUES (%(user)s, %(machine)s, True) ON DUPLICATE KEY " + \
+                          "UPDATE confirmed = True, user = %(user)s"
+            dbpool.runQuery(querystring, {"user":users, "machine":host})
+        else:
+            dbpool.runQuery("DELETE FROM current WHERE machine = %s AND (confirmed OR "
+                    "connecttime < DATE_SUB(NOW(), INTERVAL %s SECOND))", (host, settings["Reserve_Time"]))
 
 ## Creates a HandleAgent for each connection
 class HandleAgentFactory(Factory):
@@ -247,8 +238,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         else:
             defer.returnValue(prevMachine[0][0])
 
-
-
     ## Sends the SQL request to reserve the machine for the user
     def reserveMachine(self, user, pool, machine):
         opstring = "INSERT INTO current VALUES (%s, %s, %s, False, CURRENT_TIMESTAMP)"
@@ -347,8 +336,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
                 result = yield dbpool.runQuery(query, [poolRegex(pools)])
         machines = [record[0] for record in result]
         defer.returnValue(machines)
-
-
 
 ## A place to direct blacklisted addresses, or if we have too many connections at once
 class DoNothing(Protocol):
@@ -460,19 +447,12 @@ class CommandHandler(LineOnlyReceiver):
         self.transport.write(str_response)
         self.transport.loseConnection()
 
-## Checks the machines table for inactive machines, and sets them as so
-# Called periodically
 def checkMachines():
-    #check for inactive machines
-    if (settings.get("Timeout_time") is not None) or (settings.get("Timeout_time") != 'None'):
-        querystring = "UPDATE machines SET active = False, status = NULL WHERE last_heartbeat " + \
-                "< DATE_SUB(NOW(), INTERVAL %s SECOND)"
-        r1 = dbpool.runQuery(querystring, (settings.get("Timeout_Time"),))
-
-    #check for reserved machines without confirmation
-    #querystring = "DELETE FROM current WHERE (confirmed = False AND connecttime < DATE_SUB(NOW(), INTERVAL %s SECOND))"
-    querystring = "DELETE FROM current WHERE (connecttime < DATE_SUB(NOW(), INTERVAL %s SECOND))"
-    r2 = dbpool.runQuery(querystring, (settings.get("Reserve_Time"),))
+    if settings["Timeout_time"] is None or settings["Timeout_time"] == 'None':
+        return
+    query = "UPDATE machines SET active = False, status = NULL WHERE last_heartbeat " + \
+            "< DATE_SUB(NOW(), INTERVAL %s SECOND)"
+    dbpool.runQuery(query, (settings["Timeout_Time"],))
 
 ## Gets the blacklist from the database, and updates is
 def cacheBlacklist():
@@ -506,7 +486,7 @@ def getAuthServer():
 ## Reads the configuration file
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
-    for filelocation in ["/etc/cabsbroker.conf", "/usr/local/share/cabsbroker.conf",
+    for filelocation in ["/etc/cabsbroker.conf", "/usr/local/share/cabsbroker/cabsbroker.conf",
                          os.path.dirname(os.path.abspath(__file__)) + "/cabsbroker.conf"]:
         if os.path.isfile(filelocation):
             break
