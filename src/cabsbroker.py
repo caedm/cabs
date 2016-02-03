@@ -46,6 +46,7 @@ settings = {"Max_Clients":'62',
             "Database_Name":"test",
             "Reserve_Time":'360',
             "Timeout_Time":'540',
+            "machine_check_interval":"20",
             "Use_Blacklist":'False',
             "Auto_Blacklist":'False',
             "Auto_Max":'300',
@@ -114,17 +115,24 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
                 "status = %s WHERE machine = %s"
         dbpool.runQuery(query, (procStatus, host))
 
+    @defer.inlineCallbacks
     def updateCurrent(self, host, users):
         if users:
             users = ", ".join(users)
-            logger.debug("Machine {0} reports user {1}".format(host, users))
-            querystring = "INSERT INTO current (user, machine, confirmed) " + \
+            new_login = yield dbpool.runInteraction(self.is_new_login, host)
+            dbpool.runQuery("INSERT INTO current (user, machine, confirmed) " + \
                           "VALUES (%(user)s, %(machine)s, True) ON DUPLICATE KEY " + \
-                          "UPDATE confirmed = True, user = %(user)s"
-            dbpool.runQuery(querystring, {"user":users, "machine":host})
+                          "UPDATE confirmed = True, user = %(user)s", {"user":users, "machine":host})
+            if new_login:
+                logger.info("user {} logged into machine {}".format(users, host))
         else:
             dbpool.runQuery("DELETE FROM current WHERE machine = %s AND (confirmed OR "
                     "connecttime < DATE_SUB(NOW(), INTERVAL %s SECOND))", (host, settings["Reserve_Time"]))
+
+    def is_new_login(self, trans, host):
+        trans.execute("SET @reserved = (SELECT NOT confirmed FROM current WHERE machine = %s)", host)
+        trans.execute("SELECT @reserved IS NULL OR @reserved = True")
+        return trans.fetchall()[0][0]
 
 ## Creates a HandleAgent for each connection
 class HandleAgentFactory(Factory):
@@ -206,6 +214,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         prevMachine = yield self.prev_machine(user, pool)
         if prevMachine is not None:
             logger.info("Restored {0} to {1}".format(prevMachine, user))
+            dbpool.runQuery("UPDATE current SET connecttime = NOW() WHERE machine = %s", (prevMachine,))
             self.send_machine(prevMachine)
         else:
             openMachines = yield self.open_machines(pool)
@@ -230,8 +239,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     @defer.inlineCallbacks
     def prev_machine(self, user, requestedpool):
-        #only find a previous machine if it had been in the same pool, and confirmed
-        querystring = "SELECT machine FROM current WHERE (user = %s AND name = %s AND confirmed = True)"
+        querystring = "SELECT machine FROM current WHERE (user = %s AND name = %s)"
         prevMachine = yield dbpool.runQuery(querystring, (user, requestedpool))
         if len(prevMachine) == 0:
             defer.returnValue(None)
@@ -447,12 +455,29 @@ class CommandHandler(LineOnlyReceiver):
         self.transport.write(str_response)
         self.transport.loseConnection()
 
+@defer.inlineCallbacks
 def checkMachines():
-    if settings["Timeout_time"] is None or settings["Timeout_time"] == 'None':
+    if settings["Timeout_Time"] is None or settings["Timeout_Time"] == 'None':
         return
-    query = "UPDATE machines SET active = False, status = NULL WHERE last_heartbeat " + \
-            "< DATE_SUB(NOW(), INTERVAL %s SECOND)"
-    dbpool.runQuery(query, (settings["Timeout_Time"],))
+    result = yield dbpool.runInteraction(run_transaction)
+    for machine, user in result:
+        if user is not None:
+            logger.warning("user {} was unassigned from machine {} (machine went inactive)"
+                    .format(user, machine))
+
+def run_transaction(trans):
+    trans.execute("SET @cutoff = DATE_SUB(NOW(), INTERVAL %s SECOND)", settings["Timeout_Time"])
+    trans.execute("DROP TABLE IF EXISTS inactive")
+    trans.execute("CREATE TEMPORARY TABLE inactive AS "
+                        "(SELECT machines.machine, current.user FROM machines LEFT JOIN current "
+                        "ON machines.machine = current.machine WHERE last_heartbeat < @cutoff)")
+    trans.execute("UPDATE machines SET active = False, status = NULL WHERE machine IN "
+                        "(SELECT machine FROM inactive)")
+    trans.execute("INSERT INTO inactive SELECT machine, user FROM current WHERE connecttime < @cutoff "
+                        " AND machine NOT IN (SELECT machine FROM machines)")
+    trans.execute("DELETE FROM current WHERE machine IN (SELECT machine FROM inactive)")
+    trans.execute("SELECT * FROM inactive")
+    return trans.fetchall()
 
 ## Gets the blacklist from the database, and updates is
 def cacheBlacklist():
@@ -651,7 +676,7 @@ if __name__ == "__main__":
 
         #Check Machine status every 1/2 Reserve_Time
         checkup = task.LoopingCall(checkMachines)
-        checkup.start( int(settings.get("Reserve_Time"))/2 )
+        checkup.start(int(settings["machine_check_interval"]))
     else:
         #this to do so things kinda work without agents
         querystring = "UPDATE machines SET active = True, status = 'Okay'"
