@@ -126,13 +126,31 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
             if new_login:
                 logger.info("user {} logged into machine {}".format(users, host))
         else:
-            dbpool.runQuery("DELETE FROM current WHERE machine = %s AND (confirmed OR "
-                    "connecttime < DATE_SUB(NOW(), INTERVAL %s SECOND))", (host, settings["Reserve_Time"]))
+            dbpool.runInteraction(self.logoff, host)
 
     def is_new_login(self, trans, host):
         trans.execute("SET @reserved = (SELECT NOT confirmed FROM current WHERE machine = %s)", host)
         trans.execute("SELECT @reserved IS NULL OR @reserved = True")
         return trans.fetchall()[0][0]
+
+    def logoff(self, trans, host):
+        trans.execute("SELECT user FROM current WHERE machine = %s", host)
+        result = trans.fetchone()
+        if result is None:
+            return
+        user = result[0]
+        trans.execute("SET @timedout = (SELECT NOT confirmed FROM current WHERE machine = %(host)s) AND "
+                    "(SELECT connecttime FROM current WHERE machine = %(host)s) < "
+                    "DATE_SUB(NOW(), INTERVAL %(reserve)s SECOND)",
+                    {"host":host, "reserve":settings["Reserve_Time"]})
+        trans.execute("DELETE FROM current WHERE machine = %s AND (confirmed OR @timedout)", (host,))
+        if trans.rowcount:
+            trans.execute("SELECT @timedout")
+            result = trans.fetchone()
+            if result[0]:
+                logger.info("reservation for user {} on machine {} timed out".format(user, host))
+            else:
+                logger.info("user {} logged off of machine {}".format(user, host))
 
 ## Creates a HandleAgent for each connection
 class HandleAgentFactory(Factory):
@@ -226,7 +244,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
                 # The chances of this happening are extremely small (see tryReserve).
                 self.send_error("RETRY")
                 raise StopIteration
-            logger.info("Gave {0} to {1}".format(machine, user))
+            logger.info("reserved {0} for {1}".format(machine, user))
             self.send_machine(machine)
 
     def send_error(self, message):
