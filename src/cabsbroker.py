@@ -104,6 +104,7 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
         self.updateMachine(host, procStatus)
         self.updateCurrent(host, users)
 
+    @defer.inlineCallbacks
     def updateMachine(self, host, procStatus):
         if procStatus is not None:
             procName, statusId = re.search(r'([^\d-]*)(-?\d+)', procStatus).groups()
@@ -111,9 +112,16 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
             # "Unknown" is statusMap[-1]
             statusMap = ["Not Found", "Not Running", "Not Connected", "Okay", "Unknown"]
             procStatus = "{} : {}".format(procName, statusMap[statusId])
-        query = "UPDATE machines SET active = True, last_heartbeat = NOW(), " + \
-                "status = %s WHERE machine = %s"
-        dbpool.runQuery(query, (procStatus, host))
+        result = yield dbpool.runQuery("SELECT status FROM machines WHERE machine = %s", (host,))
+        if len(result[0]) == 0:
+            # Machine isn't in our database.
+            return
+        oldStatus = result[0][0]
+        dbpool.runQuery("UPDATE machines SET active = True, last_heartbeat = NOW(), "
+                "status = %s WHERE machine = %s", (procStatus, host))
+        if oldStatus != procStatus:
+            logger.info("status of {} changed from {} to {}".format(
+                host, repr(oldStatus), repr(procStatus)))
 
     @defer.inlineCallbacks
     def updateCurrent(self, host, users):
@@ -124,7 +132,7 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
                           "VALUES (%(user)s, %(machine)s, True) ON DUPLICATE KEY " + \
                           "UPDATE confirmed = True, user = %(user)s", {"user":users, "machine":host})
             if new_login:
-                logger.info("user {} logged into machine {}".format(users, host))
+                logger.info("{} logged into {}".format(users, host))
         else:
             dbpool.runInteraction(self.logoff, host)
 
@@ -148,9 +156,9 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
             trans.execute("SELECT @timedout")
             result = trans.fetchone()
             if result[0]:
-                logger.info("reservation for user {} on machine {} timed out".format(user, host))
+                logger.info("reservation for {} on {} timed out".format(user, host))
             else:
-                logger.info("user {} logged off of machine {}".format(user, host))
+                logger.info("{} logged off of {}".format(user, host))
 
 ## Creates a HandleAgent for each connection
 class HandleAgentFactory(Factory):
@@ -160,14 +168,14 @@ class HandleAgentFactory(Factory):
     def buildProtocol(self, addr):
         #Blacklist check here
         if addr.host in blacklist:
-            logger.debug("Blacklisted address {0} tried to connect".format(addr.host))
+            logger.debug("blacklisted address {0} tried to connect".format(addr.host))
             protocol = DoNothing()
             protocol.factory = self
             return protocol
 
         #limit connection number here
         if (settings.get("Max_Agents") is not None and settings.get("Max_Agents") != 'None') and (int(self.numConnections) >= int(settings.get("Max_Agents"))):
-            logger.warning("Reached maximum Agent connections")
+            logger.warning("reached maximum agent connections")
             protocol = DoNothing()
             protocol.factory = self
             return protocol
@@ -231,7 +239,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             raise StopIteration
         prevMachine = yield self.prev_machine(user, pool)
         if prevMachine is not None:
-            logger.info("Restored {0} to {1}".format(prevMachine, user))
+            logger.info("restored {0} to {1}".format(prevMachine, user))
             dbpool.runQuery("UPDATE current SET connecttime = NOW() WHERE machine = %s", (prevMachine,))
             self.send_machine(prevMachine)
         else:
@@ -271,6 +279,9 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     @defer.inlineCallbacks
     def tryReserve(self, user, pool, machines):
+        # NOTE: the following no longer applies, so we probably don't have to shuffle the machines.
+        #       But it's still fun to do. If one machine is being sketchy, at least the broker won't
+        #       repeatedly try to assign users to it.
         # If a user reserves a machine but that machine sends a heartbeat before the user logs in, the
         # machine will be unreserved. If another user requests a machine before the first user logs in,
         # the broker might reserve the same machine for the second user. Trying to reserve machines in
@@ -377,14 +388,14 @@ class HandleClientFactory(Factory):
     def buildProtocol(self, addr):
         #Blacklist check here
         if addr.host in blacklist:
-            logger.debug("Blacklisted address {0} tried to connect".format(addr.host))
+            logger.debug("blacklisted address {0} tried to connect".format(addr.host))
             protocol = DoNothing()
             protocol.factory = self
             return protocol
 
         #limit connection number here
         if (settings.get("Max_Clients") is not None and settings.get("Max_Clients") != 'None') and (int(self.numConnections) >= int(settings.get("Max_Clients"))):
-            logger.warning("Reached maximum Client connections")
+            logger.warning("reached maximum Client connections")
             protocol = DoNothing()
             protocol.factory = self
             return protocol
@@ -477,22 +488,23 @@ class CommandHandler(LineOnlyReceiver):
 def checkMachines():
     if settings["Timeout_Time"] is None or settings["Timeout_Time"] == 'None':
         return
-    result = yield dbpool.runInteraction(run_transaction)
+    result = yield dbpool.runInteraction(disable_machines)
     for machine, user in result:
-        if user is not None:
-            logger.warning("user {} was unassigned from machine {} (machine went inactive)"
-                    .format(user, machine))
+        if user is None:
+            logger.warning("{} went inactive".format(machine))
+        else:
+            logger.warning("{} went inactive while {} was logged in".format(machine, user))
 
-def run_transaction(trans):
+def disable_machines(trans):
     trans.execute("SET @cutoff = DATE_SUB(NOW(), INTERVAL %s SECOND)", settings["Timeout_Time"])
     trans.execute("DROP TABLE IF EXISTS inactive")
     trans.execute("CREATE TEMPORARY TABLE inactive AS "
-                        "(SELECT machines.machine, current.user FROM machines LEFT JOIN current "
-                        "ON machines.machine = current.machine WHERE last_heartbeat < @cutoff)")
+            "(SELECT machines.machine, current.user FROM machines LEFT JOIN current ON "
+            " machines.machine = current.machine WHERE active = True AND last_heartbeat < @cutoff)")
     trans.execute("UPDATE machines SET active = False, status = NULL WHERE machine IN "
-                        "(SELECT machine FROM inactive)")
+            "(SELECT machine FROM inactive)")
     trans.execute("INSERT INTO inactive SELECT machine, user FROM current WHERE connecttime < @cutoff "
-                        " AND machine NOT IN (SELECT machine FROM machines)")
+            " AND machine NOT IN (SELECT machine FROM machines)")
     trans.execute("DELETE FROM current WHERE machine IN (SELECT machine FROM inactive)")
     trans.execute("SELECT * FROM inactive")
     return trans.fetchall()
@@ -514,7 +526,7 @@ def setBlacklist(data):
 def setAuthServer(results):
     results = results[0]
     if not results[0].payload.target:
-        logger.error("Could not find LDAP server from AUTO")
+        logger.error("could not find LDAP server from AUTO")
     else:
         settings["Auth_Server"] = str(results[0].payload.target)
 
@@ -529,8 +541,9 @@ def getAuthServer():
 ## Reads the configuration file
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
-    for filelocation in ["/etc/cabsbroker.conf", "/usr/local/share/cabsbroker/cabsbroker.conf",
-                         os.path.dirname(os.path.abspath(__file__)) + "/cabsbroker.conf"]:
+    for filelocation in ["/etc/cabsbroker.conf", 
+                         os.path.dirname(os.path.abspath(__file__)) + "/CABS_broker.conf",
+                         "/usr/local/share/cabsbroker/cabsbroker.conf"]:
         if os.path.isfile(filelocation):
             break
     with open(filelocation, 'r') as f:
