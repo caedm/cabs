@@ -47,7 +47,10 @@ $echo cd "$root"
 
 $echo mkdir -p /usr/local/share/cabsbroker/
 for f in ./res/{agent_cert.pem,broker_server.pem,caedm_ad.pem,trusted_clients.pem}; do
-    $echo install -vm 644 $f /usr/local/share/cabsbroker/
+    dest=/usr/local/share/cabsbroker/$(basename $f)
+    if [ ! -e $dest ]; then
+        $echo install -vm 644 $f $dest
+    fi
 done
 $echo install -vm 644 ./res/cabsbroker.conf /usr/local/share/cabsbroker/
 $echo install -v ./src/cabsbroker.py /usr/local/sbin/cabsbrokerd

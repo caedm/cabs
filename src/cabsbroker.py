@@ -46,7 +46,7 @@ settings = {"Max_Clients":'62',
             "Database_Name":"test",
             "Reserve_Time":'360',
             "Timeout_Time":'540',
-            "machine_check_interval":"20",
+            "Machine_Check":"20",
             "Use_Blacklist":'False',
             "Auto_Blacklist":'False',
             "Auto_Max":'300',
@@ -265,8 +265,10 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     @defer.inlineCallbacks
     def prev_machine(self, user, requestedpool):
-        querystring = "SELECT machine FROM current WHERE (user = %s AND name = %s)"
-        prevMachine = yield dbpool.runQuery(querystring, (user, requestedpool))
+        # Don't give back a machine that hasn't been confirmed. If a machine is sketchy and the user can't
+        # log in, we don't want to give them the same machine when they request another one.
+        query = "SELECT machine FROM current WHERE user = %s AND name = %s AND confirmed = True"
+        prevMachine = yield dbpool.runQuery(query, (user, requestedpool))
         if len(prevMachine) == 0:
             defer.returnValue(None)
         else:
@@ -279,13 +281,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     @defer.inlineCallbacks
     def tryReserve(self, user, pool, machines):
-        # NOTE: the following no longer applies, so we probably don't have to shuffle the machines.
-        #       But it's still fun to do. If one machine is being sketchy, at least the broker won't
-        #       repeatedly try to assign users to it.
-        # If a user reserves a machine but that machine sends a heartbeat before the user logs in, the
-        # machine will be unreserved. If another user requests a machine before the first user logs in,
-        # the broker might reserve the same machine for the second user. Trying to reserve machines in
-        # random order lessens the chance that this will happen.
+        # If one machine is being sketchy, we want to lessen the chances of it being assigned repeatedly.
         random.shuffle(machines)
         for machine in machines:
             try:
@@ -542,7 +538,7 @@ def getAuthServer():
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
     for filelocation in ["/etc/cabsbroker.conf", 
-                         os.path.dirname(os.path.abspath(__file__)) + "/CABS_broker.conf",
+                         os.path.dirname(os.path.abspath(__file__)) + "/CABS_server.conf",
                          "/usr/local/share/cabsbroker/cabsbroker.conf"]:
         if os.path.isfile(filelocation):
             break
@@ -705,9 +701,8 @@ if __name__ == "__main__":
                     settings.get("Broker_Priv_Key") + ":certKey=" + settings.get("Broker_Cert")
             endpoints.serverFromString(reactor, agentserverstring).listen(HandleAgentFactory())
 
-        #Check Machine status every 1/2 Reserve_Time
         checkup = task.LoopingCall(checkMachines)
-        checkup.start(int(settings["machine_check_interval"]))
+        checkup.start(int(settings["Machine_Check"]))
     else:
         #this to do so things kinda work without agents
         querystring = "UPDATE machines SET active = True, status = 'Okay'"
