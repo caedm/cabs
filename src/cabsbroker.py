@@ -57,7 +57,7 @@ settings = {"Max_Clients":'62',
             "Auth_Usr_Attr":'None',
             "Auth_Grp_Attr":'None',
             "Auth_Secure":'False',
-            "Cert_Dir":"/usr/share/cabsbroker/",
+            "Cert_Dir":"/usr/local/share/cabsbroker/",
             "Auth_Cert":None,
             "Broker_Priv_Key":None,
             "Broker_Cert":None,
@@ -113,7 +113,7 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
             statusMap = ["Not Found", "Not Running", "Not Connected", "Okay", "Unknown"]
             procStatus = "{} : {}".format(procName, statusMap[statusId])
         result = yield dbpool.runQuery("SELECT status FROM machines WHERE machine = %s", (host,))
-        if len(result[0]) == 0:
+        if len(result) == 0:
             # Machine isn't in our database.
             return
         oldStatus = result[0][0]
