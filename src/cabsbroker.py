@@ -256,11 +256,11 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             self.send_machine(machine)
 
     def send_error(self, message):
-        self.sendLine("Err:" + message)
+        self.transport.write("Err:" + message)
         self.transport.loseConnection()
 
     def send_machine(self, machine):
-        self.sendLine(machine)
+        self.transport.write(machine)
         self.transport.loseConnection()
 
     @defer.inlineCallbacks
