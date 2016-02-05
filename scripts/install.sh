@@ -11,7 +11,6 @@ Installs the CABS broker.
 "
 ERR_OPTION=1
 ERR_ROOT=2
-ERR_BAD_PROGRAMMER=3
 force=false
 noconf=false
 for i in "$@"; do
@@ -49,11 +48,11 @@ $echo mkdir -p /usr/local/share/cabsbroker/
 for f in ./res/{agent_cert.pem,broker_server.pem,caedm_ad.pem,trusted_clients.pem}; do
     dest=/usr/local/share/cabsbroker/$(basename $f)
     if [ ! -e $dest ]; then
-        $echo install -vm 644 $f $dest
+        $echo install -vm 600 $f $dest
     fi
 done
 $echo install -vm 644 ./res/cabsbroker.conf /usr/local/share/cabsbroker/
 $echo install -v ./src/cabsbroker.py /usr/local/sbin/cabsbrokerd
-$echo install -vm 644 ./src/cabs.service /etc/systemd/system/
+$echo install -vm 644 ./src/cabsbroker.service /etc/systemd/system/
 echo Installation complete.
-echo "Don't forget to run $(tput bold)\`systemctl start cabs; systemctl enable cabs\`$(tput sgr0)."
+echo "Don't forget to run $(tput bold)\`systemctl start cabsbroker; systemctl enable cabsbroker\`$(tput sgr0)."

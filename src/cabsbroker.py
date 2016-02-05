@@ -50,7 +50,7 @@ settings = {"Max_Clients":'62',
             "Use_Blacklist":'False',
             "Auto_Blacklist":'False',
             "Auto_Max":'300',
-            "Auth_Server":'None',
+            "Auth_Server":'AUTO.et.byu.edu',
             "Auth_Prefix":'',
             "Auth_Postfix":'',
             "Auth_Base":'None',
@@ -65,7 +65,7 @@ settings = {"Max_Clients":'62',
             "RGS_Ver_Min":'False',
             "Verbose_Out":'False',
             "Log_Amount":'4',
-            "Log_Keep":'500',
+            "Log_Keep":'600',
             "Log_Time":'1800',
             "One_Connection":'True',
             "Trusted_Clients":None }
@@ -537,9 +537,7 @@ def getAuthServer():
 ## Reads the configuration file
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
-    for filelocation in ["/etc/cabsbroker.conf", 
-                         os.path.dirname(os.path.abspath(__file__)) + "/CABS_server.conf",
-                         "/usr/local/share/cabsbroker/cabsbroker.conf"]:
+    for filelocation in ["/etc/cabsbroker.conf", "/usr/local/share/cabsbroker/cabsbroker.conf"]:
         if os.path.isfile(filelocation):
             break
     with open(filelocation, 'r') as f:
@@ -560,7 +558,7 @@ def readConfigFile():
             settings[key] = val
         f.close()
 
-    for key in ("Broker_Cert", "Agent_Cert", "Trusted_Clients"):
+    for key in ("Broker_Cert", "Broker_Priv_Key", "Agent_Cert", "Trusted_Clients"):
         if settings[key] is not None and not os.path.isabs(settings[key]):
             settings[key] = os.path.join(settings["Cert_Dir"], settings[key])
     if settings["Broker_Priv_Key"] is None:
