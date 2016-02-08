@@ -294,7 +294,10 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
     ## Sends the list of pools accesable to the user
     def writePools(self, listpools):
         for item in listpools:
-            self.transport.write(str(item))
+            pool, description = item
+            if description == None:
+                description = 'None'
+            self.transport.write(str((pool, description)))
             self.transport.write("\n")
         self.transport.loseConnection()
 
