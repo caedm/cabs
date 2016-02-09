@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+# cabsagentd    Start/Stop the CABS Agent
+#
+# chkconfig: 345 93 01
+# processname: CABS_Agent
+# config: /usr/lib/CABS/CABS_agent.conf autoreload
+# Description: The CABS agent is part of the CABS system, and will \
+#              alert the Broker of the machine's status and users.
+
+### BEGIN INIT INFO
+# Provides cabsagentd
+# Required-Start $remote_fs $network
+# Required-Stop $remote_fs $network
+# Default-Start:  3 4 5
+# Default=Stop: 0 1 2 6
+# Short-Description : run CABS agent daemon
+# Description: The CABS agent is part of the CABS system, and will
+#              alert the Broker of the machine's status and users.
+### END INIT INFO
+
+#Get functions from functions library
+. /etc/init.d/functions
+
+retval=0
+dir=/usr/lib/CABS/
+exec=/usr/lib/CABS/cabsagentd
+lockfile=/var/lock/subsys/cabsagentd
+config=/user/lib/CABS/CABS_agent.conf
+
+start() {
+    if [ $UID -ne 0 ]; then
+        echo "User has insufficient privilege."
+        exit 4
+    fi
+    if [ ! -e $lockfile ]; then
+        echo -n $"Starting $exec:"
+        olddir=$(pwd)
+        cd $dir
+        #to redirect the output, change /dev/null to a logfile
+        nohup $exec > /dev/null 2>&1 & echo $! > $lockfile
+        retval=$?
+        cd $olddir
+        ##create lockfile
+        success "Starting CABS_Agent"
+    else
+        echo -n "Lockfile exists already."
+    fi
+}
+
+stop() {
+    echo -n "Stopping $exec: "
+    kill $( cat $lockfile )
+    ##delete lockfile
+    rm -f $lockfile
+}
+
+
+case "$1" in
+    start)
+        start
+    ;;
+    stop)
+        stop
+    ;;
+    restart|reload)
+        stop
+        start
+    ;;
+    *)
+        echo -n "Usage: $0 {start|stop|restart|reload}"
+        exit 1
+esac
+exit $retval
