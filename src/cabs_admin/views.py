@@ -84,18 +84,23 @@ def machinesPage(request, selected_machine=None):
     c_list = Current.objects.using('cabs').all()
     m_list = Machines.objects.using('cabs').all()
     
-    machine_info = collections.namedtuple('machine', ['machine', 'name', 'active', 'user', 'deactivated',
-                                                      'reason', 'status'])
+    machine_info = collections.namedtuple('machine',
+            ['machine', 'name', 'active', 'user', 'loginTime', 'deactivated', 'reason', 'status'])
     machine_list = []
     reported = []
     
+    # TODO: figure out the idiomatic way to do the analog of an SQL join.
     for m in m_list: 
         user = ''
+        loginTime = ''
         for c in c_list:
             if m.machine == c.machine:
                 user = c.user
+                loginTime = c.connecttime
                 reported.append(c)
-        item = machine_info(machine=m.machine, name=m.name, active=m.active, user=user,
+                break
+        active = "Active" if m.active else "Awaiting Response"
+        item = machine_info(machine=m.machine, name=m.name, active=active, user=user, loginTime=loginTime,
                             deactivated=m.deactivated, reason=m.reason,
                             status=(m.status if m.status is not None else ""))
         machine_list.append(item)
@@ -106,17 +111,23 @@ def machinesPage(request, selected_machine=None):
                                 deactivated=False, reason="", status="")
             machine_list.append(item)
 
-    sortkey = lambda x: x.machine
+    mainkey = lambda x: x.machine
     if request.GET.get('sort'):
         sortby = request.GET.get('sort')
         if sortby == "pool":
-            sortkey = lambda x: x.name
+            mainkey = lambda x: x.name
         elif sortby == "user":
-            sortkey = lambda x: x.user
+            mainkey = lambda x: x.user
+        elif sortby == "loginTime":
+            mainkey = lambda x: x.loginTime
         elif sortby == "status":
-            sortkey = lambda x: x.status
-        elif sortby == "agent":
-            sortkey = lambda x: x.active
+            mainkey = lambda x: x.status
+        elif sortby == "active":
+            mainkey = lambda x: (not x.active, not x.deactivated)
+        elif sortby == "disable":
+            mainkey = lambda x: (not x.deactivated, not x.active)
+    # Put empty fields at the bottom.
+    sortkey = lambda x : (mainkey(x) == "", mainkey(x), x.machine)
     machine_list = sorted(machine_list, key=sortkey)
     
     pool_list = Pools.objects.using('cabs').all().order_by('name')
