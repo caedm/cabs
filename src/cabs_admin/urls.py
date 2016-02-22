@@ -1,9 +1,13 @@
-from django.conf.urls import patterns, url
+from django.conf.urls import url
+from django.conf import settings
+from django.conf.urls.static import static
 
 from cabs_admin import views
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'^$', views.index, name='index'),
+    url(r'^graphs/$', views.graphsPage, name='graphsPage'),
+    url(r'^graphs/(?P<selected>[-\w]+)/$', views.graphsPage, name='graphsPage'),
     url(r'^logout/$', views.logoutView, name='logout'),
     url(r'^machines/$', views.machinesPage, name='machinesPage'),
     url(r'^machines/submit/$', views.setMachines, name='setMachines'),
@@ -25,4 +29,4 @@ urlpatterns = patterns('',
     url(r'^whitelist/rm/$', views.rmWhitelist, name='rmWhitelist'),
     url(r'^history/$', views.historyPage, name='historyPage'),
     url(r'^(?P<permission_error>(view)|(edit)|(disable))/$', views.index, name='index'),
-)
+]

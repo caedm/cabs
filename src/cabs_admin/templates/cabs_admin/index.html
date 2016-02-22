@@ -5,12 +5,13 @@
 {% endif %}
 
 <center>
-<hr>
-<br/><br/>
-<h2>
-CABS Admininstrator Console
-<br/>
-<small> {{ permissions }} </small>
-</h2>
+<p>{{ permissions }}</p>
+
+{% load staticfiles %}
+{% for pool in pools %}
+    <a href="{% url 'cabs_admin:graphsPage' pool %}">
+    <img class="graph" src="{% static "graphs/" %}{{ pool }}/12h.png" alt="{{ pool }} over the last 12 hours" />
+    </a>
+{% endfor %}
 
 </center>

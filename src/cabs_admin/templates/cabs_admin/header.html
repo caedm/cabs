@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
     <!-- Optional theme -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+    <!-- custom CSS -->
+    {% load staticfiles %}
+    <link rel="stylesheet" href="{% static "main.css" %}" />
     <!-- Latest compiled and minified JavaScript -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
     <script type="text/javascript">
@@ -40,6 +43,7 @@
         <div class="collapse navbar-collapse" id="navbar-main">
             <ul class="nav navbar-nav navbar-right">
                 {% if request.user.is_authenticated %}
+                    <li class="nav"><a href="{% url 'cabs_admin:graphsPage' %}">Graphs</a></li>
                     <li class="nav"><a href="{% url 'cabs_admin:machinesPage' %}">Machines</a></li>
                     <li class="nav"><a href="{% url 'cabs_admin:poolsPage' %}">Pools</a></li>
                     <li class="nav"><a href="{% url 'cabs_admin:settingsPage' %}">Settings</a></li>

@@ -15,6 +15,17 @@ from cabs_admin.models import Log
 from django.conf import settings
 
 import collections
+import logging
+import logging.handlers
+
+logger = logging.getLogger("interface:views.py")
+logger.setLevel(logging.DEBUG)
+
+handler = logging.handlers.SysLogHandler(address='/dev/log')
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(name)s %(levelname)s: %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def can_view(user):
     if len(settings.CABS_LDAP_CAN_VIEW_GROUPS) == 0:
@@ -67,16 +78,30 @@ def index(request, permission_error=None):
         
         context['permissions'] = user_string
         context['section_name'] = "Welcome {0}".format(request.user.get_username()) 
-        
         if permission_error:
             context['permission_error'] = "You do not have permissions to " + permission_error + "."
         else:
             context['permission_error'] = None
+
+        context['pools'] = settings.AGGREGATE_GRAPHS + \
+                [pool.name for pool in Pools.objects.using('cabs').all()]
         return render(request, 'cabs_admin/index.html', context)
 
 def logoutView(request):
     template_response = views.logout(request, template_name='cabs_admin/index.html', current_app='cabs_admin')
     return template_response
+
+@login_required
+@user_passes_test(can_view, login_url='/admin/view/')
+def graphsPage(request, selected=None):
+    context = {}
+    if selected == None:
+        selected = settings.AGGREGATE_GRAPHS[0]
+    context['selected'] = selected
+    pools = settings.AGGREGATE_GRAPHS + [pool.name for pool in Pools.objects.using('cabs').all()]
+    context['pools'] = {pool: pool.replace("_", " ") for pool in pools}
+    context['lengths'] = settings.GRAPH_LENGTHS
+    return render(request, 'cabs_admin/graphs.html', context)
 
 @login_required
 @user_passes_test(can_view, login_url='/admin/view/')
@@ -99,8 +124,8 @@ def machinesPage(request, selected_machine=None):
                 loginTime = c.connecttime
                 reported.append(c)
                 break
-        active = "Active" if m.active else "Awaiting Response"
-        item = machine_info(machine=m.machine, name=m.name, active=active, user=user, loginTime=loginTime,
+        #active = "Active" if m.active else "Awaiting Response"
+        item = machine_info(machine=m.machine, name=m.name, active=m.active, user=user, loginTime=loginTime,
                             deactivated=m.deactivated, reason=m.reason,
                             status=(m.status if m.status is not None else ""))
         machine_list.append(item)
@@ -123,9 +148,9 @@ def machinesPage(request, selected_machine=None):
         elif sortby == "status":
             mainkey = lambda x: x.status
         elif sortby == "active":
-            mainkey = lambda x: (not x.active, not x.deactivated)
-        elif sortby == "disable":
-            mainkey = lambda x: (not x.deactivated, not x.active)
+            mainkey = lambda x: (x.active, not x.deactivated)
+        elif sortby == "disabled":
+            mainkey = lambda x: (not x.deactivated, x.active)
     # Put empty fields at the bottom.
     sortkey = lambda x : (mainkey(x) == "", mainkey(x), x.machine)
     machine_list = sorted(machine_list, key=sortkey)

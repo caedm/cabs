@@ -1,18 +1,53 @@
 #!/bin/bash
 set -e
-if [ "$EUID" -ne 0 ]; then
+USAGE="$0 [options]
+$0 [-h|--help]
+
+Installs the CABS broker.
+
+  -h, --help:    show this help message and exit.
+  -d, --dry-run: show what commands the installer will run without actually
+                 doing anything.
+  -f, --force:   replace existing configuration files, creating backups first
+                 (default: install with .new extension if exists).
+  -n, --no-conf: skip installing configuration files (overrides -f)
+"
+echo=
+force=false
+noconf=false
+
+for arg in "$@"; do
+    case $arg in
+    -d|--dry-run)
+        echo=echo
+        ;;
+    -f|--force)
+        force=true
+        ;;
+    -n|--no-conf)
+        noconf=true
+        ;;
+    -h|--help)
+        echo "$USAGE"
+        exit 0
+        ;;
+    *)
+        echo invalid option: $i > /dev/stderr
+        exit $ERR_OPTION
+        ;;
+    esac
+done
+
+if [ "$EUID" -ne 0 -a ! "$echo" ]; then
     echo "This script must be run as root."
     exit
 fi
-#echo=echo
-
-force=false
-if [ "$1" = "-f" ]; then
-    force=true
-    shift
+if [ "$echo" ]; then
+    echo DRY RUN
 fi
 
 function install_conf {
+    $noconf && return
     src="$1"
     dest="$2"
     if [ -e "$dest" ]; then
@@ -52,6 +87,8 @@ install_conf "$SRC"/res/apache_settings.conf /etc/apache2/sites-enabled/000-defa
 $echo source $DEST/env/bin/activate
 $echo $DEST/manage.py makemigrations
 $echo $DEST/manage.py migrate
+$echo cd $DEST
+echo yes | $echo ./manage.py collectstatic
 $echo deactivate
 
 #enable https only
