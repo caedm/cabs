@@ -1,0 +1,22 @@
+{% include "cabs_admin/header.html" %}
+
+{% load staticfiles %}
+<nav>
+    <div class="cointainer-fluid">
+    <div class="collapse navbar-collapse">
+    <ul class="nav navbar-nav">
+        {% for pool, title in pools.items %}
+            <li class="nav"><a {% if pool == selected %} id="selected" {% endif %}
+                 href="{% url 'cabs_admin:graphsPage' pool %}">{{ title }}</a></li>
+        {% endfor %}
+    </ul>
+    </div>
+    </div>
+</nav>
+
+<center>
+{% for length in lengths %}
+    <img class="graph" src="{% static "graphs/" %}{{ selected }}/{{ length }}.png"
+                       alt="{{ selected }} over the last {{ length }}" />
+{% endfor %}
+</center>
