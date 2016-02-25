@@ -15,11 +15,13 @@ Installs the CABS broker.
 echo=
 force=false
 noconf=false
+rsyncDry=
 
 for arg in "$@"; do
     case $arg in
     -d|--dry-run)
         echo=echo
+        rsyncDry="--dry-run"
         ;;
     -f|--force)
         force=true
@@ -80,7 +82,7 @@ $echo mkdir -p $DEST
 
 $echo touch /etc/apache2/mods-enabled/python.load
 
-$echo rsync -av --exclude 'settings.py' "$SRC"/src/ $DEST/
+rsync $rsyncDry -av --size-only --exclude 'settings.py' --exclude 'migrations/' "$SRC"/src/ $DEST/
 install_conf "$SRC"/src/admin_tools/settings.py $DEST/admin_tools/settings.py
 install_conf "$SRC"/res/apache_settings.conf /etc/apache2/sites-enabled/000-default.conf
 
@@ -92,7 +94,7 @@ echo yes | $echo ./manage.py collectstatic
 $echo deactivate
 
 #enable https only
-a2enmod rewrite
-a2enmod ssl
+$echo a2enmod rewrite
+$echo a2enmod ssl
 
 $echo service apache2 restart

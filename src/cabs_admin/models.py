@@ -56,7 +56,7 @@ class Machines(models.Model):
     name = models.CharField(max_length=32)
     machine = models.CharField(primary_key=True, unique=True, max_length=32)
     active = models.BooleanField(default=False)
-    status = models.CharField(max_length=64, blank=True)
+    status = models.CharField(max_length=18, blank=True)
     last_heartbeat = models.DateTimeField()
     deactivated = models.BooleanField(default=False)
     reason = models.CharField(max_length=120, blank=True)
