@@ -98,8 +98,12 @@ def graphsPage(request, selected=None):
     if selected == None:
         selected = settings.AGGREGATE_GRAPHS[0]
     context['selected'] = selected
-    pools = settings.AGGREGATE_GRAPHS + [pool.name for pool in Pools.objects.using('cabs').all()]
-    context['pools'] = {pool: pool.replace("_", " ") for pool in pools}
+    Pool = collections.namedtuple("Pool", "name title")
+    title = lambda s: s.replace("_", " ")
+    context['pools'] = [Pool(p, title(p)) for p in settings.AGGREGATE_GRAPHS] + \
+                sorted([Pool(pool.name, title(pool.name)) for pool in Pools.objects.using('cabs').all()])
+    #context['pools'] = pools
+    #context['pools'] = {pool: pool.replace("_", " ") for pool in pools}
     context['lengths'] = settings.GRAPH_LENGTHS
     return render(request, 'cabs_admin/graphs.html', context)
 
