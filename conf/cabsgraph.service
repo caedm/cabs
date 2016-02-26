@@ -1,0 +1,9 @@
+#!/bin/bash
+[Unit]
+Description="CABS graphing"
+
+[Service]
+ExecStart=/opt/cabsgraph/update.sh
+
+[Install]
+WantedBy=multi-user.target

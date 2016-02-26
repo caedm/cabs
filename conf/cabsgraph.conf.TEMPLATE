@@ -1,0 +1,7 @@
+WWW=/path/to/cabs/interface
+# Don't put spaces in pool names.
+POOLS=(pool1 pool2 pool3)
+DB=db_name
+declare -A AGGREGATE
+AGGREGATE["All pools"]="${POOLS[*]}"
+AGGREGATE["Another pool"]="pool1 pool2"
