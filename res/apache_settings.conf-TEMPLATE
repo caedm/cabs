@@ -27,3 +27,9 @@
 	ErrorLog ${APACHE_LOG_DIR}/error.log
 	CustomLog ${APACHE_LOG_DIR}/access.log combined
 </VirtualHost>
+
+Alias /static/ /var/www/CABS_interface/static/
+
+<Directory /var/www/CABS_interface/static/>
+Require all granted
+</Directory>
