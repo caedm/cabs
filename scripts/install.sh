@@ -8,9 +8,6 @@ Installs the CABS broker.
   -h, --help:    show this help message and exit.
   -d, --dry-run: show what commands the installer will run without actually
                  doing anything.
-  -f, --force:   replace existing configuration files, creating backups first
-                 (default: install with .new extension if exists).
-  -n, --no-conf: skip installing configuration files (overrides -f)
 "
 echo=
 force=false
@@ -22,12 +19,6 @@ for arg in "$@"; do
     -d|--dry-run)
         echo=echo
         rsyncDry="--dry-run"
-        ;;
-    -f|--force)
-        force=true
-        ;;
-    -n|--no-conf)
-        noconf=true
         ;;
     -h|--help)
         echo "$USAGE"
@@ -48,22 +39,6 @@ if [ "$echo" ]; then
     echo DRY RUN
 fi
 
-function install_conf {
-    $noconf && return
-    src="$1"
-    dest="$2"
-    if [ -e "$dest" ]; then
-        if ! $force && ! cmp -s "$src" "$dest"; then
-            $echo install -vm 644 "$src" "$dest".new
-            echo $(tput bold)warning: $(basename "$dest") installed as $dest.new$(tput sgr0)
-        else
-            $echo install -vm 644 --backup=simple "$src" "$dest"
-        fi
-    else
-        $echo install -vm 644 "$src" "$dest"
-    fi
-}
-
 if [ "$CABS_INTERFACE_ROOT" != "" ]; then
     SRC="$CABS_INTERFACE_ROOT"
 else
@@ -83,7 +58,7 @@ $echo mkdir -p $DEST
 $echo touch /etc/apache2/mods-enabled/python.load
 
 rsync $rsyncDry -av --size-only --exclude 'local_settings.py' --exclude 'migrations/' "$SRC"/src/ $DEST/
-install_conf "$SRC"/res/apache_settings.conf /etc/apache2/sites-enabled/000-default.conf
+$echo install -vm 644 "$SRC"/res/apache_settings.conf-TEMPLATE /etc/apache2/sites-enabled/000-default.conf-TEMPLATE
 
 $echo source $DEST/env/bin/activate
 $echo $DEST/manage.py makemigrations

@@ -1,3 +1,7 @@
+try:
+    from local_settings import *
+except ImportError as e:
+    pass
 import os
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
