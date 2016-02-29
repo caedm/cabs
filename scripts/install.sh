@@ -82,8 +82,7 @@ $echo mkdir -p $DEST
 
 $echo touch /etc/apache2/mods-enabled/python.load
 
-rsync $rsyncDry -av --size-only --exclude 'settings.py' --exclude 'migrations/' "$SRC"/src/ $DEST/
-install_conf "$SRC"/src/admin_tools/settings.py $DEST/admin_tools/settings.py
+rsync $rsyncDry -av --size-only --exclude 'local_settings.py' --exclude 'migrations/' "$SRC"/src/ $DEST/
 install_conf "$SRC"/res/apache_settings.conf /etc/apache2/sites-enabled/000-default.conf
 
 $echo source $DEST/env/bin/activate
