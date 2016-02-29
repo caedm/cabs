@@ -1,11 +1,5 @@
-
 import os
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-
-SECRET_KEY = 'ru1-%pf+4%tqe6uow&_xrz6!z35+%bp!^!ru=jve!1&ti&7fc7'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
 TEMPLATE_DEBUG = False
 LOGGING = {
@@ -34,9 +28,6 @@ LOGGING = {
         },
     }
 }
-
-#ALLOWED_HOSTS = ['cabs.et.byu.edu', 'cabs.et.byu.edu.']
-ALLOWED_HOSTS = []
 
 SESSION_COOKIE_SECURE = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
@@ -100,7 +91,6 @@ CABS_LDAP_CAN_VIEW_GROUPS = [
     "caedm_admin_level1",
 ]
 
-
 LOGIN_URL = "cabs_admin:index"
 LOGIN_REDIRECT_URL = 'cabs_admin:index'
 
@@ -133,31 +123,6 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'django.core.context_processors.request',
 )
 
-# Database
-# https://docs.djangoproject.com/en/1.7/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'broker',
-
-            'USER': 'user',
-            'PASSWORD': 'pass',
-            'HOST': '127.0.0.1',
-            'PORT': '3306',
-
-    },
-    'cabs': {
-        'ENGINE':'django.db.backends.mysql',
-
-        'NAME': 'broker',
-            'USER': 'user',
-            'PASSWORD': 'pass',
-            'HOST': '127.0.0.1',
-            'PORT': '3306',
-
-    }
-}
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.7/topics/i18n/
@@ -178,9 +143,15 @@ USE_TZ = True
 
 STATIC_ROOT = '/var/www/CABS_interface/static/'
 STATIC_URL = '/static/'
+STATICFILES_DIRS = [
+        'cabs_admin/static',
+        '/opt/cabsgraph/static'
+]
 
 #A patch to make django-auth-ldap work with Active Directory with direct bind
 import django
+# I think I had to add this line because the website wouldn't install without it. I don't think settings.py
+# on cabs.et.byu.edu has this line.
 django.setup()
 
 from django_auth_ldap import backend
@@ -199,3 +170,11 @@ def monkey(self, password):
         raise self.AuthenticationFailed("user DN/password rejected by LDAP server.")
 
 backend._LDAPUser._authenticate_user_dn = monkey
+
+AGGREGATE_GRAPHS = ["All_pools"]
+GRAPH_LENGTHS = ["12h", "1d", "7d", "1M", "1y", "3y"]
+
+try:
+    from local_settings import *
+except ImportError as e:
+    pass
