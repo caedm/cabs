@@ -84,7 +84,7 @@ def index(request, permission_error=None):
             context['permission_error'] = None
 
         context['pools'] = settings.AGGREGATE_GRAPHS + \
-                [pool.name for pool in Pools.objects.using('cabs').all()]
+                sorted([pool.name for pool in Pools.objects.using('cabs').all()])
         return render(request, 'cabs_admin/index.html', context)
 
 def logoutView(request):
