@@ -9,7 +9,4 @@ for length in ${LENGTHS[@]}; do
     for title in "${!AGGREGATE[@]}"; do
         mk_aggregate_graph $length "$title" ${AGGREGATE[$title]}
     done
-    #mk_aggregate_graph $length "All Windows" OffCampusWindows OnCampusWIndows
-    #mk_aggregate_graph $length "All Linux" RGSLinux RGSOffCampusLinux
-    #mk_aggregate_graph $length "All pools" ${POOLS[@]}
 done

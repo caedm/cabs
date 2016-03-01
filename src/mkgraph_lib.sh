@@ -40,16 +40,23 @@ get_args () {
 
 get_rra () {
     CF="$1"
-    echo -n "RRA:$CF:0.5:5m:12h \
-             RRA:$CF:0.5:10m:1d \
-             RRA:$CF:0.5:1h:7d \
-             RRA:$CF:0.5:2h:1M \
-             RRA:$CF:0.5:1d:1y \
-             RRA:$CF:0.5:3d:3y"
+    echo -n "RRA:$CF:0.5:1:144 \
+             RRA:$CF:0.5:2:144 \
+             RRA:$CF:0.5:12:168 \
+             RRA:$CF:0.5:24:360 \
+             RRA:$CF:0.5:288:365 \
+             RRA:$CF:0.5:864:365"
+    # I thought you could do this, but apparently you can't.
+    #echo -n "RRA:$CF:0.5:5m:12h \
+    #         RRA:$CF:0.5:10m:1d \
+    #         RRA:$CF:0.5:1h:7d \
+    #         RRA:$CF:0.5:2h:1M \
+    #         RRA:$CF:0.5:1d:1y \
+    #         RRA:$CF:0.5:3d:3y"
 }
 
 run_sql () {
-    mysql --defaults-file=$ROOT/my.cnf $DB <<< "$1"
+    echo "$1" | mysql --defaults-file=$ROOT/my.cnf $DB
 }
 
 # TODO Get all queries in one go
