@@ -1,24 +1,42 @@
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$ROOT/cabsgraph.conf"
 
+mk_all_graphs () {
+    LENGTHS=(12h 1d 7d 1M 1y 3y)
+    for length in ${LENGTHS[@]}; do
+        for pool in ${POOLS[@]}; do
+            mkgraph $length $pool 
+        done
+        for title in "${!AGGREGATE[@]}"; do
+            mk_aggregate_graph $length "$title" ${AGGREGATE[$title]}
+        done
+    done
+}
+
 mkgraph () {
     mk_aggregate_graph $1 $2 $2
 }
 
 mk_aggregate_graph () {
     length="$1"
-    title="$2"
+    name="$2"
     shift 2
     pools="$@"
-    prefix=$(tr ' ' '_' <<< $title)
+    prefix=$(tr ' ' '_' <<< $name)
     dir="$ROOT/static/graphs/$prefix/"
+    if [ "$length" = 12h ]; then
+        users=$(get_users $pools)
+        title="$name ($length. $users users)"
+    else
+        title="$name ($length)"
+    fi
     mkdir -p "$dir"
     rrdtool graph "$dir/$length.png" \
-        --start -$length --title "$title ($length)" \
+        --start -$length --title "$title" \
         $(get_args $pools) \
-        LINE2:avg_active#0000FF:"Avg machines active" \
         LINE2:min_available#00FF00:"Min machines available" \
-        LINE2:max_users#FF0000:"Max users"
+        LINE1:avg_active#0000FF:"Avg machines active" \
+        LINE1:max_users#FF0000:"Max users"
 }
 
 get_args () {
@@ -69,4 +87,23 @@ query_db () {
                          AND status LIKE '%%Okay' AND DEACTIVATED = False \
                          AND machine NOT IN (SELECT machine FROM current);" | tail -n 1)
     echo -e "$users\t$machines\t$available"
+}
+
+get_users() {
+    users=0
+    for pool in "$@"; do
+        count=$(rrdtool fetch "$ROOT/db/$pool.rrd" MAX | sed '/nan/d' | tail -n 1 | awk '{print $2}')
+        count=$(printf "%.0f" $count)
+        ((users+=count))
+    done
+    echo $users
+}
+
+export_graphs() {
+    # manage.py only works if you're in the same directory.
+    cd $WWW
+    source $WWW/env/bin/activate
+    echo yes | $WWW/manage.py collectstatic
+    deactivate
+    cd -
 }

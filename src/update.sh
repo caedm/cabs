@@ -1,6 +1,5 @@
 #!/bin/bash
 STEP=300s
-MKGRAPH=./mkgraph.sh
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 source ./mkgraph_lib.sh
@@ -16,13 +15,8 @@ update () {
         logger -t cabsgraph "\'$pool\' has $users users, $machines online and $available available"
         rrdtool update db/${pool}.rrd N:$users:$machines:$available
     done
-    $MKGRAPH
-    # manage.py only works if you're in the same directory.
-    cd $WWW
-    source $WWW/env/bin/activate
-    echo yes | $WWW/manage.py collectstatic
-    deactivate
-    cd -
+    mk_all_graphs
+    export_graphs
 }
 
 while true; do
