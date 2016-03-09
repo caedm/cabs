@@ -408,26 +408,32 @@ class CommandHandler(LineOnlyReceiver):
     """
 
     def lineReceived(self, line):
-        logger.info("received command from {}: {}".format(self.transport.getPeer(), line.strip()))
+        logMsg = "received command from {}: '{}'".format(self.transport.getPeer(), line.strip())
         segments = line.split(':')
         command = segments[0]
         args = segments[1:]
         if command == "query":
+            logger.debug(logMsg)
             verbose = len(args) >= 1 and args[0] == 'verbose'
             response = dbpool.runQuery(
                     "SELECT machines.name, machines.machine, status, user, deactivated, reason " + \
                     "FROM machines LEFT OUTER JOIN current ON machines.machine = current.machine")
             response.addCallback(self.respond_query, verbose)
         elif command == "tell_agent":
+            logger.info(logMsg)
             if len(args) != 2:
                 self.bad_command(line)
                 return
             self.tell_agent(*args)
         elif command == "autoit":
+            logger.info(logMsg)
             if len(args) != 2:
                 self.bad_command(line)
                 return
             self.autoit(*args)
+        else:
+            logMsg += " (unrecognized)"
+            logger.debug(logMsg)
 
     @defer.inlineCallbacks
     def autoit(self, action, hostname):
@@ -479,7 +485,6 @@ class CommandHandler(LineOnlyReceiver):
             str_response += ',1,' if line[3] is not None else ',0,'
             str_response += ','.join([str(x) for x in line[4:]])
             str_response += '\n'
-        str_response += 'END'
         self.transport.write(str_response)
         self.transport.loseConnection()
 
