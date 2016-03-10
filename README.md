@@ -26,8 +26,10 @@ Run the install script: `/path/to/interface/scripts/install.sh`. This will
 install the interface to `/var/www/CABS_interface`. You will need to edit
 `/var/www/CABS_interface/admin_tools/settings.py` and
 `/var/www/CABS_interface/admin_tools/settings-local.py-TEMPLATE`, removing the
-`-TEMPLATE` suffix. You may need to run the install script again if it failed
-the first time.
+`-TEMPLATE` suffix. An example config file for Apache will also be installed to
+`/etc/apache2/sites-enabled/000-default.conf-TEMPLATE`. After editing the
+config files, may need to run the install script again if it failed the first
+time.
 
 To display graphs, you will need to install CABS Graph.
 
