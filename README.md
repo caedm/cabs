@@ -18,7 +18,10 @@ edit `/opt/cabsagent/cabsagent.conf` as needed. Start the service with `service 
 The install script should set it to start on boot automatically.
 
 ###Windows
-The most recent version of the Agent is incomplete for Windows.* A previous version is in the windows
-branch. [install instructions here]
+The most recent version of the Agent is incomplete for Windows.* A previous
+version is in the windows folder. Run `windows/Install_CABS_Agent.exe` to
+install.
+
+*The script itself is working, but it isn't installable as a service yet.
 
 See the README and wiki in the cabs-broker repo for more information about the CABS system.
