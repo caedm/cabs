@@ -7,9 +7,9 @@ number of open machines. It runs as a daemon and generates new graphs for the In
 
 ##Installation
 
-###Dependencies
-mysql-client
-rrdtool
+Dependencies:
+ - mysql-client
+ - rrdtool
 
 `install.sh` will install CABS Graph to `/opt/cabsgraph/`. After installation,
 the script will give necessary instructions for configuration. The MySQL
