@@ -36,6 +36,9 @@ assign RGS blades to our students. The entire project has several parts:
 CABS Graph is an appendage to the interface. It uses rrdtool to monitor the
 machines and produces graphs which are viewed from the interface.
 
+More information is in the wiki. It is kept in the cabs-broker repo, but it
+covers all the other repos as well.
+
 ##Installation
 `scripts/install.sh` will install the broker to `/usr/local/`. Copy the default
 config file from `/usr/local/share/cabsbroker/cabsbroker.conf` to
