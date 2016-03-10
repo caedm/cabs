@@ -50,3 +50,6 @@ cabsbroker; systemctl enable cabsbroker`.
 You will need to add an entry to the broker's database for each machine to be
 managed. This can be done from the Interface after it is installed. It can also
 be done manually with SQL. You also need to add an entry for each pool.
+
+See the README files in the other repositories for instructions on installing
+the other parts.
