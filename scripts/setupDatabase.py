@@ -11,7 +11,9 @@ settings = {}
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
     global settings
-    filelocation = os.path.dirname(os.path.abspath(__file__)) + '/CABS_server.conf'
+    for filelocation in ["/etc/cabsbroker.conf", "/usr/local/share/cabsbroker/cabsbroker.conf"]:
+        if os.path.isfile(filelocation):
+            break
     with open(filelocation, 'r') as f:
         for line in f:
             line = line.strip()
