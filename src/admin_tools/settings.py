@@ -154,8 +154,6 @@ STATICFILES_DIRS = [
 
 #A patch to make django-auth-ldap work with Active Directory with direct bind
 import django
-# I think I had to add this line because the website wouldn't install without it. I don't think settings.py
-# on cabs.et.byu.edu has this line.
 django.setup()
 
 from django_auth_ldap import backend

@@ -3,17 +3,14 @@ set -e
 USAGE="$0 [options]
 $0 [-h|--help]
 
-Installs the CABS broker.
+Installs the CABS Interface.
 
   -h, --help:    show this help message and exit.
   -d, --dry-run: show what commands the installer will run without actually
                  doing anything.
 "
 echo=
-force=false
-noconf=false
 rsyncDry=
-
 for arg in "$@"; do
     case $arg in
     -d|--dry-run)
@@ -59,6 +56,7 @@ $echo touch /etc/apache2/mods-enabled/python.load
 
 rsync $rsyncDry -av --size-only --exclude 'local_settings.py' --exclude 'migrations/' "$SRC"/src/ $DEST/
 $echo install -vm 644 "$SRC"/res/apache_settings.conf-TEMPLATE /etc/apache2/sites-enabled/000-default.conf-TEMPLATE
+mkdir -p /opt/cabsgraph/static
 
 $echo source $DEST/env/bin/activate
 $echo $DEST/manage.py makemigrations
