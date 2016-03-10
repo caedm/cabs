@@ -10,7 +10,7 @@ ERR_PROJ_ROOT=2
 ERR_ROOT=3
 action=install
 echo=
-dest=/usr/lib/CABS/
+dest=/opt/cabsagent/
 
 for i in "$@"; do
     case $i in

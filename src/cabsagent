@@ -23,10 +23,10 @@
 . /etc/init.d/functions
 
 retval=0
-dir=/usr/lib/CABS/
-exec=/usr/lib/CABS/cabsagentd
+dir=/opt/cabsagent/
+exec=/opt/cabsagent/cabsagentd
 lockfile=/var/lock/subsys/cabsagentd
-config=/user/lib/CABS/CABS_agent.conf
+config=/opt/cabsagent/cabsagent.conf
 
 start() {
     if [ $UID -ne 0 ]; then
