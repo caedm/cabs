@@ -3,5 +3,6 @@ WWW=/path/to/cabs/interface
 POOLS=(pool1 pool2 pool3)
 DB=db_name
 declare -A AGGREGATE
+# Add custom pools here.
 AGGREGATE["All pools"]="${POOLS[*]}"
 AGGREGATE["Another pool"]="pool1 pool2"
