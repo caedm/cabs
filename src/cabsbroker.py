@@ -545,7 +545,8 @@ def getAuthServer():
 ## Reads the configuration file
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
-    for filelocation in ["/etc/cabsbroker.conf", "/usr/local/share/cabsbroker/cabsbroker.conf"]:
+    for filelocation in ["/etc/cabsbroker.conf", "/usr/local/share/cabsbroker/cabsbroker.conf",
+            os.path.dirname(os.path.abspath(__file__)) + "/cabsbroker.conf"]:
         if os.path.isfile(filelocation):
             break
     with open(filelocation, 'r') as f:
