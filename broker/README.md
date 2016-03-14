@@ -1,12 +1,6 @@
 # CABS
 Connection Automation/Brokerage System
 
-##Overview
-CABS is used to assign machines to remote clients. Here at CAEDM, we use it to
-assign RGS blades to our students. The entire project has several parts. Information about the
-system as a whole is on the wiki, kept in the cabs-broker repo. For installation instructions, see
-the individual README files.
-
 ###The Broker
 - Our server that communicates between the Client and the Agent.
 - Tracks free machines via a database.
