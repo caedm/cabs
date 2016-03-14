@@ -1,0 +1,83 @@
+{% include "cabs_admin/header_refresh.html" %}
+
+<table class="table table-bordered table-hover">
+    <tr><th><a href="{% url 'cabs_admin:machinesPage' %}?sort=machine" style="color: #333333">Machine</a></th>
+        <th><a href="{% url 'cabs_admin:machinesPage' %}?sort=pool" style="color: #333333">Pool</a></th>
+        <th><a href="{% url 'cabs_admin:machinesPage' %}?sort=user" style="color: #333333">User</a></th>
+        <th><a href="{% url 'cabs_admin:machinesPage' %}?sort=loginTime" style="color: #333333">Login Time</a></th>
+        <th><a href="{% url 'cabs_admin:machinesPage' %}?sort=status" style="color: #333333">Status</a></th>
+        <th><a href="{% url 'cabs_admin:machinesPage' %}?sort=active" style="color: #333333">Activity</a></th>
+        <th><a href="{% url 'cabs_admin:machinesPage' %}?sort=disabled" style="color: #333333">Disable Reason</a></th>
+    <tr></tr>
+{% for machine in machine_list %}
+    <tr {% if machine.deactivated %} class="danger" {% elif not machine.active %} class="warning" {% elif machine.name == "No Pool" %} class="info" {% endif %}>
+        <form action="{% url 'cabs_admin:toggleMachines' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="machine" value="{{machine.machine}}">
+        <td> {{ machine.machine }} </td>
+        <td> {{ machine.name }} </td>
+        <td> {{ machine.user }} </td>
+        <td> {{ machine.loginTime }} </td>
+        <td> {{ machine.status }} </td>
+        <td> {% if machine.active %}
+                Active
+             {% else %}
+                Awaiting Response
+             {% endif %}</td>
+        <td> {% if machine.deactivated %}
+                {{ machine.reason }} 
+            {% endif %}
+        {% if machine.name != "No Pool" %}
+        <input class="btn btn-danger pull-right" type="submit" name="rm" onclick="return confirm('Are you sure you would like to remove {{ machine.machine }}?');" value="X">
+        <button type="submit" name="toggle" value="{{machine.machine}}"
+            {% if machine.deactivated and selected_machine == machine.machine %}
+                class="btn btn-primary active pull-right" title="Deactivation Reason" data-html="true" data-toggle="popover" data-placement="left" data-content="
+    <form action='{% url 'cabs_admin:commentMachines' %}' method='post'>
+    {% csrf_token %}
+        <input type='text' name='reason' title='Reason'>
+        <input type='hidden' name='machine' value='{{selected_machine}}'>
+        <button class='btn btn-primary' type='submit'>OK</button>
+    </form>
+" checked>Disabled
+            {% elif machine.deactivated %}
+                class="btn btn-primary active pull-right" title="{{machine.reason}}" data-toggle="tooltip" data-placement="left" checked>Disabled
+            {% else %}
+                class="btn btn-default pull-right">Enabled
+            {% endif %}</button>
+        {% endif %}
+        </form>
+        </td>
+    </tr>
+{% endfor %}
+</table>
+
+<hr/>
+
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">Add/Change a Machine</h3>
+    </div>
+    <div class="panel-body">
+        <p>Note that to add a machine, you must also install the CABS Agent on it.</p>
+        <form action="{% url 'cabs_admin:setMachines' %}" method="post" class="form-inline">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="machine">Machine Name:</label>
+            <input type="text" class="form-control" name="machine" title="Machine Name" pattern="^[\w-_]+$">
+        </div>
+        <div class="form-group">
+            <label for="name">Pool:</label>
+            <select class="form-control" name="name" title="Machine Pool">
+                <option value="" disabled >Choose a Pool</option>
+                {% for pool in pool_list %}
+                    <option value="{{ pool.name }}" > {{ pool.name }} </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+</div>
+
+
+{% include "cabs_admin/footer.html" %}
