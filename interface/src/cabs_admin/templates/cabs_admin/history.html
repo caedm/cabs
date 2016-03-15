@@ -3,7 +3,7 @@
 <nav>
     <ul class="pagination">
         {% for page in page_list %}
-            <li><a href="{% url 'cabs_admin:historyPage' %}?position={{page.pos}}&sort={{sort|urlencode}}&filter={{filter|urlencode}}">{{page.index}}</a></li>
+            <li><a {% if page.index == current_page %} id="selected" {% endif %} href="{% url 'cabs_admin:historyPage' %}?position={{page.pos}}&sort={{sort|urlencode}}&filter={{filter|urlencode}}">{{page.index}}</a></li>
         {% endfor %} 
     </ul>
 </nav>
