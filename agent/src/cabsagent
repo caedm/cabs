@@ -4,7 +4,7 @@
 #
 # chkconfig: 345 93 01
 # processname: CABS_Agent
-# config: /usr/lib/CABS/CABS_agent.conf autoreload
+# config: /etc/cabsagent.conf autoreload
 # Description: The CABS agent is part of the CABS system, and will \
 #              alert the Broker of the machine's status and users.
 
@@ -23,10 +23,10 @@
 . /etc/init.d/functions
 
 retval=0
-dir=/opt/cabsagent/
-exec=/opt/cabsagent/cabsagentd
+dir=/usr/sbin/
+exec=/usr/sbin/cabsagentd
 lockfile=/var/lock/subsys/cabsagentd
-config=/opt/cabsagent/cabsagent.conf
+config=/etc/cabsagent.conf
 
 start() {
     if [ $UID -ne 0 ]; then

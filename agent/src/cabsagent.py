@@ -10,7 +10,6 @@ import subprocess
 import re
 import signal
 import traceback
-import logging
 from sched import scheduler
 from time import time, sleep
 from threading import Thread, Timer
@@ -20,14 +19,10 @@ from twisted.internet.ssl import Certificate, PrivateCertificate
 from twisted.internet import reactor, endpoints
 from twisted.protocols.basic import LineOnlyReceiver
 
-logfile = os.path.join(os.getenv("APPDATA"), "cabsagent.log")
-print "logfile: " + logfile
-logging.basicConfig(filename=logfile, level=logging.DEBUG, format='%(asctime)s %(message)s')
-
 try:
     import psutil
 except:
-    logging.warning("warning: couldn't import psutil. Process monitoring not available.")
+    print "warning: couldn't import psutil. Process monitoring not available."
     psutil = None
 
 ERR_GET_STATUS = -1
@@ -36,9 +31,19 @@ STATUS_PS_NOT_RUNNING = 1
 STATUS_PS_NOT_CONNECTED = 2
 STATUS_PS_OK = 3
 
-settings = {}
 #global heartbeat_pid
 requestStop = False
+
+settings = { "Host_Addr":'localhost',
+             "Agent_Port":18182,
+             "Command_Port":18185,
+             "Cert_Dir":"/usr/share/cabsagent/",
+             "Broker_Cert":None,
+             "Agent_Cert":None,
+             "Agent_Priv_Key":None,
+             "Interval":6,
+             "Process_Listen":None,
+             "Hostname":None }
 
 if os.name == "posix":
     def user_list():
@@ -102,15 +107,15 @@ else:
     #        win32serviceutil.HandleCommandLine(AgentService)
 
     def restart():
-        logging.info("restarting")
+        print "restarting"
         if settings["Process_Listen"] is None:
-            logging.warning("no process to restart")
+            print "no process to restart"
             return
         #print "win32serviceutil.RestartService({})".format(settings["Process_Listen"])
         win32serviceutil.RestartService(settings["Process_Listen"].rstrip(".exe"))
 
     def reboot():
-        logging.info("rebooting")
+        print "rebooting"
         win32api.InitiateSystemShutdown(None, None, 0, 1, 1)
 
     def stop():
@@ -120,7 +125,7 @@ else:
 def heartbeat_loop():
     s = scheduler(time, sleep)
     #read config for time interval, in seconds
-    logging.info("Starting. Pulsing every {0} seconds.".format(settings.get("Interval")))
+    print "Starting. Pulsing every {0} seconds.".format(settings.get("Interval"))
     while True:
         if requestStop:
             break
@@ -129,6 +134,7 @@ def heartbeat_loop():
 
 def heartbeat():
     userlist = user_list()
+    print userlist
     if settings.get("Process_Listen") is not None and psutil is not None:
         content = "spr:" + settings.get("Process_Listen") + str(getStatus()) + ":" + \
                     settings.get("Hostname")
@@ -137,17 +143,19 @@ def heartbeat():
     for user in userlist:
         content += ":{0}".format(user)
     content += "\r\n"
+    print "sending " + content
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((settings.get("Host_Addr"), int(settings.get("Agent_Port"))))
         if settings.get("Broker_Cert") is None:
             s_wrapped = s 
         else:
+            print "using broker cert: " + settings["Broker_Cert"]
             s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=settings["Broker_Cert"], \
                         ssl_version=ssl.PROTOCOL_SSLv23)
         
         s_wrapped.sendall(content)
-        logging.info("Told server " + content)
+        print "Told server " + content 
     except:
         traceback.print_exc()
 
@@ -188,7 +196,7 @@ class CommandHandler(LineOnlyReceiver):
     """
     def lineReceived(self, line):
         command = line.strip()
-        logging.info("received command: " + command)
+        print "received command: " + command
         if command == "restart":
             restart()
         elif command == "reboot":
@@ -208,23 +216,14 @@ def start_ssl_cmd_server():
     reactor.listenSSL(int(settings.get("Command_Port")), factory, certificate.options(authority))
 
 def readConfigFile():
-    global settings
-    settings = { "Host_Addr":'localhost',
-                 "Agent_Port":18182,
-                 "Command_Port":18185,
-                 "Cert_Dir":"/usr/share/cabsagent/",
-                 "Broker_Cert":None,
-                 "Agent_Cert":None,
-                 "Agent_Priv_Key":None,
-                 "Interval":6,
-                 "Process_Listen":None,
-                 "Hostname":None }
-
     if getattr(sys, 'frozen', False):
         application_path = os.path.dirname(os.path.abspath(sys.executable))
     else:
         application_path = os.path.dirname(os.path.abspath(__file__))
-    filelocation = os.path.join(application_path, 'cabsagent.conf')
+    for filelocation in ["/etc/cabsagent.conf", "/usr/share/cabsagent/cabsagent.conf",
+            os.path.join(application_path, 'cabsagent.conf')]:
+        if os.path.isfile(filelocation):
+            break
     with open(filelocation, 'r') as f:
         for line in f:
             line = line.strip()
@@ -233,10 +232,10 @@ def readConfigFile():
             try:
                 key, val = [word.strip() for word in line.split(':', 1)]
             except ValueError:
-                logging.warning("Warning: unrecognized setting: " + line)
+                print "Warning: unrecognized setting: " + line
                 continue
             if key not in settings:
-                logging.warning("Warning: unrecognized setting: " + line)
+                print "Warning: unrecognized setting: " + line
                 continue
             settings[key] = val
         f.close()
@@ -266,7 +265,7 @@ def start():
         endpoint.listen(Factory.forProtocol(CommandHandler))
     else:
         start_ssl_cmd_server()
-    logging.info("running the reactor")
+    print "running the reactor"
     reactor.run()
 
 if __name__ == "__main__":

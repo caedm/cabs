@@ -10,7 +10,6 @@ ERR_PROJ_ROOT=2
 ERR_ROOT=3
 action=install
 echo=
-dest=/opt/cabsagent/
 
 for i in "$@"; do
     case $i in
@@ -40,36 +39,29 @@ if [ $UID -ne 0 -a ! "$echo" ]; then
     exit $ERR_ROOT
 fi
 
-if [ "$CABSAGENT_ROOT" != "" ]; then
-    root="$CABSAGENT_ROOT"
-else
-    cd "$(dirname "${BASH_SOURCE[0]}")"
-    root="$(pwd | sed 's/\(.*agent\/\).*/\1/')"
-    if [ "$root" = "" ]; then
-        echo "couldn't find cabsagent project root. Please run \`export "
-        echo "CABSAGENT_ROOT=/path/to/cabs/agent/project\` and try again."
-        exit $ERR_PROJ_ROOT
-    fi
-fi
-echo "project root: $root"
-cd "$root"
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
 if [ "$action" = install ]; then
-    $echo mkdir -vp "$dest"
-    $echo install -vm 640 ./res/*.pem "$dest"
-    $echo install -vm 644 --backup=simple ./res/cabsagent_linux.conf "$dest/cabsagent.conf"
-    $echo install -v ./src/cabsagent.py "$dest/cabsagentd"
+    $echo pip install -r ./requirements.txt
+    $echo mkdir -vp /usr/share/cabsagent/
+    $echo install -vm 600 ./res/*.pem /usr/share/cabsagent/
+    $echo install -vm 644 ./res/cabsagent_linux.conf /usr/share/cabsagent/cabsagent.conf
+    if [ ! -e /etc/cabsagent.conf ]; then
+        $echo install -vm 644 ./res/cabsagent_linux.conf /etc/cabsagent.conf
+    fi
+    $echo install -v ./src/cabsagent.py /usr/sbin/cabsagentd
     $echo install -v ./src/cabsagent /etc/init.d/
     $echo chkconfig --add cabsagent --level 345
     echo Installation complete.
 elif [ "$action" = uninstall ]; then
-    for f in "$dest"/*.pem \
-             "$dest"/{cabsagentd,cabsagent.conf} \
-             /etc/init.d/cabsagent; do
+    $echo chkconfig --del cabsagent
+    for f in /usr/share/cabsagent/ \
+             /usr/sbin/cabsagentd \
+             /etc/init.d/cabsagent \
+             /etc/cabsagent.conf; do
         if [ -e "$f" ]; then
             $echo rm -vr "$f"
         fi
     done
-    $echo chkconfig --del cabsagent
     echo Uninstallation complete.
 fi
