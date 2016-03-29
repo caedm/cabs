@@ -1,7 +1,7 @@
 @echo off
 del o1
 del email.txt
-echo To: windows@et.byu.edu >> o1
+echo To: youremail@example.com >> o1
 echo Subject: RGS Test Results %date% %time% >> o1
 echo . >> o1
 echo RGS Tester is reporting that over 30 percent of the RGS blades are broken. >> o1
