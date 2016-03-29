@@ -1,0 +1,10 @@
+@echo off
+del o1
+del email.txt
+echo To: windows@et.byu.edu >> o1
+echo Subject: RGS Test Results %date% %time% >> o1
+echo . >> o1
+echo RGS Tester is reporting that over 30 percent of the RGS blades are broken. >> o1
+echo Please verify that there is an actual issue with the blades (no changes have been made by the script) >> o1
+copy o1 + above30.txt above30email.txt
+sendmail.exe -t < above30email.txt

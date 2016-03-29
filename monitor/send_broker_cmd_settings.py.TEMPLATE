@@ -1,0 +1,4 @@
+HOST = "hostname.of.broker.edu"
+PORT = 18183
+BROKER_CERT = "res/your_broker_cert_here.pem"
+COMMAND_CERT = "res/your_command_cert_here.pem"
