@@ -136,7 +136,7 @@ def machinesPage(request, selected_machine=None):
     #if there are left over users logged into machines we don't track, let's report those as well
     for c in c_list:
         if c not in reported:
-            item = machine_info(machine=c.machine, name='No Pool', active=True, user=c.user,
+            item = machine_info(machine=c.machine, name='No Pool', active=True, user=c.user, loginTime='',
                                 deactivated=False, reason="", status="")
             machine_list.append(item)
 
