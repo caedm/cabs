@@ -1,15 +1,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href='roboto.css' rel='stylesheet' type='text/css'>
-    <script src="jquery-1.11.3.min.js"></script>
-    <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap.min.css">
-    <!-- Optional theme -->
-    <link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap-theme.min.css">
-    <!-- custom CSS -->
     {% load staticfiles %}
+    <link href="{% static "roboto.css" %}" rel='stylesheet' type='text/css'>
+    <script src="{% static "jquery-1.11.3.min.js" %}"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="{% static "bootstrap-3.3.5-dist/css/bootstrap.min.css" %}">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="{% static "bootstrap-3.3.5-dist/css/bootstrap-theme.min.css" %}">
+    <!-- custom CSS -->
     <link rel="stylesheet" href="{% static "main.css" %}" />
     <!-- Latest compiled and minified JavaScript -->
-    <script src="bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+    <script src="{% static "bootstrap-3.3.5-dist/js/bootstrap.min.js" %}"></script>
     <script type="text/javascript">
         $(function () {
             $('[data-toggle="tooltip"]').tooltip()
