@@ -49,7 +49,7 @@ for f in ./certs/*.pem; do
         $echo install -vm 600 $f $dest
     fi
 done
-$echo install -vm 644 ./conf/cabsbroker.conf /usr/local/share/cabsbroker/
+$echo install -vm 644 ./conf/default.conf /usr/local/share/cabsbroker/cabsbroker.conf
 $echo install -v ./src/cabsbroker.py /usr/local/sbin/cabsbrokerd
 $echo install -vm 644 ./src/cabsbroker.service /etc/systemd/system/
 echo Installation complete.
