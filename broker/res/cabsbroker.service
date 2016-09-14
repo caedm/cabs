@@ -3,7 +3,7 @@
 Description="Connection Automation Brokerage System (CABS)"
 
 [Service]
-ExecStart=/usr/local/sbin/cabsbrokerd
+ExecStart=/opt/cabsbroker/cabsbroker.py
 
 [Install]
 WantedBy=multi-user.target

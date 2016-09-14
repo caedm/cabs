@@ -2,4 +2,4 @@
 
 cd "$(dirname $(dirname "${BASH_SOURCE[0]}"))"
 docker build -t cabsbroker .
-docker run -it --rm cabsbroker bash
+docker run -it --rm -v $PWD:/code cabsbroker "$@"

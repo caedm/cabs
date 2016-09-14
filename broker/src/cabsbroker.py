@@ -500,7 +500,7 @@ def checkMachines():
             logger.warning("{} went inactive while {} was logged in".format(machine, user))
 
 def disable_machines(trans):
-    trans.execute("SET @cutoff = DATE_SUB(NOW(), INTERVAL %s SECOND)", settings["Timeout_Time"])
+    trans.execute("SET @cutoff = DATE_SUB(NOW(), INTERVAL %s SECOND)", (settings["Timeout_Time"],))
     trans.execute("DROP TABLE IF EXISTS inactive")
     trans.execute("CREATE TEMPORARY TABLE inactive AS "
             "(SELECT machines.machine, current.user FROM machines LEFT JOIN current ON "
@@ -545,10 +545,14 @@ def getAuthServer():
 ## Reads the configuration file
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
-    for filelocation in ["/etc/cabsbroker.conf", "/usr/local/share/cabsbroker/cabsbroker.conf",
-            os.path.dirname(os.path.abspath(__file__)) + "/cabsbroker.conf"]:
-        if os.path.isfile(filelocation):
-            break
+    print "reading config"
+    from subprocess import call
+    call(['ls'])
+    filelocation = "cabsbroker.conf"
+    if not os.path.isfile(filelocation):
+        print "cabsbroker.conf doesn't exist, returning..."
+        return
+    print "cabsbroker.conf does exist, continuing..."
     with open(filelocation, 'r') as f:
         for line in f:
             line = line.strip()
