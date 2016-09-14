@@ -18,11 +18,16 @@ RUN apt-get -y update && apt-get install -y libldap2-dev \
 COPY res/requirements.txt /
 RUN pip install -r /requirements.txt
 
-COPY ./build/cabsbroker-7.1.5856.2/ /broker
-WORKDIR /broker
-RUN ./install.sh
-RUN service mysql start && \
-    mysql -u root -pmypassword < createdb.sql && \
-    ./setupDatabase.py
+# install
+COPY ./build/cabsbroker-7.1.5856.2/ /tmp/broker
+RUN /tmp/broker/install.sh && \
+    service mysql start && \
+    mysql -u root -pmypassword < /tmp/broker/createdb.sql && \
+    rm -r /tmp/broker
 
+# setup
+WORKDIR /opt/cabsbroker
+RUN service mysql start && ./setupDatabase.py
+
+# run
 CMD service mysql start && /opt/cabsbroker/cabsbroker.py
