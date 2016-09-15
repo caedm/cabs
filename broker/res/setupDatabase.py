@@ -32,16 +32,13 @@ def readConfigFile():
 def main():
     readConfigFile()
     #now take the alloted database and create the tables you will need
-    try:
-        #get the required information
-        dbhost = settings["Database_Addr"]
-        dbport = int(settings["Database_Port"])
-        dbuser = settings["Database_Usr"]
-        dbpass = settings["Database_Pass"]
-        dbname = settings["Database_Name"]
-        #check dbname ?
-    except:
-        raise SystemExit(1)
+    #get the required information
+    dbhost = settings["Database_Addr"]
+    dbport = int(settings["Database_Port"])
+    dbuser = settings["Database_Usr"]
+    dbpass = settings["Database_Pass"]
+    dbname = settings["Database_Name"]
+    #check dbname ?
     
     try:
         db = MySQLdb.connect(host=dbhost, port=dbport, user=dbuser, passwd=dbpass, db=dbname)

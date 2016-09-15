@@ -15,7 +15,6 @@ if ! [ -f $DIR/cabsbroker.conf ]; then
     cp cabsbroker.conf $DIR
 fi
 install -vm 644 cabsbroker.service /etc/systemd/system/
-#ln -s $DIR/cabsbroker.py /usr/local/bin/cabsbrokerd
 
 echo Installation complete.
 echo "When installing for the first time,"

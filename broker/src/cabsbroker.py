@@ -552,6 +552,7 @@ def readConfigFile():
     if not os.path.isfile(filelocation):
         print "cabsbroker.conf doesn't exist, returning..."
         return
+    return
     print "cabsbroker.conf does exist, continuing..."
     with open(filelocation, 'r') as f:
         for line in f:
