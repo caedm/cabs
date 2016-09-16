@@ -28,7 +28,7 @@ import re
 from time import sleep
 
 blacklist = set()
-logger=logging.getLogger()
+logger = logging.getLogger()
 
 random.seed()
 
@@ -405,35 +405,71 @@ class CommandHandler(LineOnlyReceiver):
     query[:verbose]
     tell_agent:(restart|reboot):<hostname>
     autoit:(enable|disable):<hostname>
+    ruok
     """
 
+    commands = ('query', 'tell_agent', 'autoit', 'ruok', 'add_machine')
+
+    log_levels = {'debug': ['query', 'ruok'],
+                  'info':  ['tell_agent', 'autoit', 'add_machine']}
+
     def lineReceived(self, line):
-        logMsg = "received command from {}: '{}'".format(self.transport.getPeer(), line.strip())
+        # parse
         segments = line.split(':')
         command = segments[0]
         args = segments[1:]
-        if command == "query":
-            logger.debug(logMsg)
-            verbose = len(args) >= 1 and args[0] == 'verbose'
-            response = dbpool.runQuery(
-                    "SELECT machines.name, machines.machine, status, user, deactivated, reason " + \
-                    "FROM machines LEFT OUTER JOIN current ON machines.machine = current.machine")
-            response.addCallback(self.respond_query, verbose)
-        elif command == "tell_agent":
-            logger.info(logMsg)
-            if len(args) != 2:
-                self.bad_command(line)
-                return
-            self.tell_agent(*args)
-        elif command == "autoit":
-            logger.info(logMsg)
-            if len(args) != 2:
-                self.bad_command(line)
-                return
-            self.autoit(*args)
-        else:
-            logMsg += " (unrecognized)"
-            logger.debug(logMsg)
+
+        # validate
+        if command not in CommandHandler.commands:
+            self.bad_command(line)
+            return
+
+        # log
+        log_levels = {command: level for level, command_list in CommandHandler.log_levels.items()
+                                     for command in command_list}
+        msg = "received command from {}: '{}'".format(self.transport.getPeer(), line.strip())
+        getattr(logger, log_levels[command])(msg)
+
+        # execute
+        try:
+            getattr(self, command)(*args)
+        except (TypeError, ValueError):
+            # Incorrect arguments.
+            self.bad_command(line)
+
+    def query(self, verbose=False):
+        # validate args
+        if verbose and verbose != 'verbose':
+            raise ValueError
+        verbose = bool(verbose)
+
+        response = dbpool.runQuery(
+                "SELECT machines.name, machines.machine, status, user, deactivated, reason " + \
+                "FROM machines LEFT OUTER JOIN current ON machines.machine = current.machine")
+        response.addCallback(self.respond_query, verbose)
+
+    @defer.inlineCallbacks
+    def add_machine(self, hostname, pool):
+        try:
+            result = yield dbpool.runQuery("INSERT INTO machines (machine, name, active, "
+                                "deactivated) VALUES (%s, %s, false, false)", (hostname, pool))
+            self.transport.write("machine added successfully\n")
+        except IntegrityError as e:
+            self.transport.write("couldn't add machine: {}\n".format(e))
+        self.transport.loseConnection()
+        #s = Machines(name=new_name, machine=new_machine, active=False, deactivated=False)
+
+    def respond_query(self, response, verbose):
+        str_response = ""
+        if verbose:
+            str_response += "pool, machine, status, has users, deactivated, reason\n"
+        for line in response:
+            str_response += ','.join([str(x) for x in line[:3]])
+            str_response += ',1,' if line[3] is not None else ',0,'
+            str_response += ','.join([str(x) for x in line[4:]])
+            str_response += '\n'
+        self.transport.write(str_response)
+        self.transport.loseConnection()
 
     @defer.inlineCallbacks
     def autoit(self, action, hostname):
@@ -454,7 +490,8 @@ class CommandHandler(LineOnlyReceiver):
             self.bad_command(":".join(("autoit", action, hostname)))
 
     def bad_command(self, command):
-        self.transport.write("unrecognized command: " + command)
+        logger.info("received bad command: '" + command + "'")
+        self.transport.write("invalid command: " + command + '\n')
         self.transport.loseConnection()
 
     def tell_agent(self, command, hostname):
@@ -476,16 +513,8 @@ class CommandHandler(LineOnlyReceiver):
                     ca_certs=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
         s_wrapped.sendall(command + "\r\n")
 
-    def respond_query(self, response, verbose):
-        str_response = ""
-        if verbose:
-            str_response += "pool, machine, status, has users, deactivated, reason\n"
-        for line in response:
-            str_response += ','.join([str(x) for x in line[:3]])
-            str_response += ',1,' if line[3] is not None else ',0,'
-            str_response += ','.join([str(x) for x in line[4:]])
-            str_response += '\n'
-        self.transport.write(str_response)
+    def ruok(self):
+        self.transport.write("imok\n")
         self.transport.loseConnection()
 
 @defer.inlineCallbacks

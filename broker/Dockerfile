@@ -20,14 +20,9 @@ RUN pip install -r /requirements.txt
 
 # install
 COPY ./build/cabsbroker-7.1.5856.2/ /tmp/broker
-RUN /tmp/broker/install.sh && \
-    service mysql start && \
-    mysql -u root -pmypassword < /tmp/broker/createdb.sql && \
-    rm -r /tmp/broker
-
-# setup
-WORKDIR /opt/cabsbroker
-RUN service mysql start && ./setupDatabase.py
+RUN /tmp/broker/install.sh && rm -r /tmp/broker
 
 # run
-CMD service mysql start && /opt/cabsbroker/cabsbroker.py
+COPY res/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/opt/cabsbroker/cabsbroker.py"]

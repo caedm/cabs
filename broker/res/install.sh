@@ -10,7 +10,7 @@ DIR=/opt/cabsbroker
 cd "$(dirname "${BASH_SOURCE[0]}")"
 pip install -r requirements.txt
 mkdir -p $DIR
-cp cabsbroker.py setupDatabase.py $DIR
+cp cabsbroker.py setupDatabase.py createdb.sql $DIR
 if ! [ -f $DIR/cabsbroker.conf ]; then
     cp cabsbroker.conf $DIR
 fi
