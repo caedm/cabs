@@ -137,12 +137,13 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
             dbpool.runInteraction(self.logoff, host)
 
     def is_new_login(self, trans, host):
-        trans.execute("SET @reserved = (SELECT NOT confirmed FROM current WHERE machine = %s)", host)
+        trans.execute("SET @reserved = (SELECT NOT confirmed FROM current WHERE machine = %s)",
+                (host,))
         trans.execute("SELECT @reserved IS NULL OR @reserved = True")
         return trans.fetchall()[0][0]
 
     def logoff(self, trans, host):
-        trans.execute("SELECT user FROM current WHERE machine = %s", host)
+        trans.execute("SELECT user FROM current WHERE machine = %s", (host,))
         result = trans.fetchone()
         if result is None:
             return
@@ -393,7 +394,8 @@ class HandleClientFactory(Factory):
             return protocol
 
         #limit connection number here
-        if (settings.get("Max_Clients") is not None and settings.get("Max_Clients") != 'None') and (int(self.numConnections) >= int(settings.get("Max_Clients"))):
+        if ((settings.get("Max_Clients") is not None and settings.get("Max_Clients") != 'None') and
+                (int(self.numConnections) >= int(settings.get("Max_Clients")))):
             logger.warning("reached maximum Client connections")
             protocol = DoNothing()
             protocol.factory = self
@@ -544,7 +546,9 @@ def disable_machines(trans):
 
 ## Gets the blacklist from the database, and updates is
 def cacheBlacklist():
-    querystring = "SELECT blacklist.address FROM blacklist LEFT JOIN whitelist ON blacklist.address = whitelist.address WHERE (banned = True AND whitelist.address IS NULL)"
+    querystring = ("SELECT blacklist.address FROM blacklist LEFT JOIN whitelist "
+                   "ON blacklist.address = whitelist.address WHERE (banned = True "
+                   "AND whitelist.address IS NULL)")
     r = dbpool.runQuery(querystring)
     r.addBoth(setBlacklist)
 
@@ -574,15 +578,10 @@ def getAuthServer():
 ## Reads the configuration file
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
-    print "reading config"
-    from subprocess import call
-    call(['ls'])
     filelocation = "cabsbroker.conf"
     if not os.path.isfile(filelocation):
-        print "cabsbroker.conf doesn't exist, returning..."
         return
     return
-    print "cabsbroker.conf does exist, continuing..."
     with open(filelocation, 'r') as f:
         for line in f:
             line = line.strip()
@@ -657,7 +656,8 @@ class MySQLHandler(logging.Handler):
 
 ## Makes sure the log doesn't grow too big, removes execess
 def pruneLog():
-    querystring = "DELETE FROM log WHERE id <= (SELECT id FROM (SELECT id FROM log ORDER BY id DESC LIMIT 1 OFFSET %s)foo )"
+    querystring = ("DELETE FROM log WHERE id <= (SELECT id FROM (SELECT id FROM log "
+                   "ORDER BY id DESC LIMIT 1 OFFSET %s)foo )")
     r = dbpool.runQuery(querystring, (int(settings.get("Log_Keep")),))
 
 ## Starts the logging

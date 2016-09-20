@@ -34,7 +34,7 @@ STATUS_PS_OK = 3
 #global heartbeat_pid
 requestStop = False
 
-settings = { "Host_Addr":'localhost',
+settings = { "Host_Addr":'broker',
              "Agent_Port":18182,
              "Command_Port":18185,
              "Cert_Dir":"/usr/share/cabsagent/",

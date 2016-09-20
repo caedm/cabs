@@ -1,5 +1,5 @@
 VERSION=$(shell cat ../version.txt)
-NAME=cabsbroker-$(VERSION)
+NAME=cabsagent-$(VERSION)
 DIR=build/$(NAME)
 
 all: archive
