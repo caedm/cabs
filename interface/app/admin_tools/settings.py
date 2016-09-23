@@ -46,7 +46,7 @@ import ldap
 from django_auth_ldap.config import LDAPSearch, MemberDNGroupType
 #LDAP over TLS
 AUTH_LDAP_GLOBAL_OPTIONS = {
-    ldap.OPT_X_TLS_CACERTFILE: "/var/www/CABS_interface/caedm_ad.pem",
+    ldap.OPT_X_TLS_CACERTFILE: "/opt/cabsinterface/caedm_ad.pem",
     ldap.OPT_X_TLS_REQUIRE_CERT: ldap.OPT_X_TLS_DEMAND,
 }
 AUTH_LDAP_START_TLS = True
@@ -145,7 +145,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
 
-STATIC_ROOT = '/var/www/CABS_interface/static/'
+STATIC_ROOT = '/opt/cabsinterface/static/'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
         'cabs_admin/static',

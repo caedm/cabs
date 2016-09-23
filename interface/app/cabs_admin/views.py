@@ -18,15 +18,6 @@ import collections
 import logging
 import logging.handlers
 
-logger = logging.getLogger("interface:views.py")
-logger.setLevel(logging.DEBUG)
-
-handler = logging.handlers.SysLogHandler(address='/dev/log')
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(name)s %(levelname)s: %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-
 def can_view(user):
     if len(settings.CABS_LDAP_CAN_VIEW_GROUPS) == 0:
         return True

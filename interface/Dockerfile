@@ -1,20 +1,22 @@
-FROM centos:7
+FROM debian:8.1
 
-# python + dependencies
-RUN yum -y install epel-release
-RUN yum -y install python-pip python-devel libffi-devel openssl-devel
-RUN yum -y groupinstall development
+# install mysql, python, dependencies for pip modules
+RUN apt-get -y update && apt-get -y install \
+    python python-pip python-dev build-essential apache2 \
+    libldap2-dev libsasl2-dev libssl-dev libmysqlclient-dev
+
 COPY app/requirements.txt /tmp
 RUN pip install -r /tmp/requirements.txt
 
-# install mock who program
-COPY extra/who.sh /usr/bin/who
-RUN echo user1 > /tmp/users.txt
-RUN chmod +x /usr/bin/who
+RUN apt-get -y install libmysqlclient-dev
+RUN pip install django-auth-ldap MySQL-python
 
-# install cabs
-COPY ./build/cabsagent-7.1.5856.2/ /tmp/agent
-RUN /tmp/agent/install.sh && rm -r /tmp/agent
+# install cabs interface
+RUN apt-get -y install libapache2-mod-wsgi
+COPY ./app /tmp/app
+RUN /tmp/app/install.sh && rm -r /tmp/app
 
 # run
-CMD ["/opt/cabsagent/cabsagent.py"]
+WORKDIR /opt/cabsinterface
+COPY extra/cmd.sh /cmd.sh
+CMD ["bash", "/cmd.sh"]
