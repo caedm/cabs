@@ -18,7 +18,6 @@ done
 shift $((OPTIND - 1))
 
 cd "$(dirname $(dirname "${BASH_SOURCE[0]}"))"
-make
 docker build -t cabsagent .
 opts="--rm -v $PWD:/code --network=$network --net-alias $alias \
       --hostname $alias --name $alias"

@@ -24,11 +24,13 @@ import os
 import socket
 import ssl
 import re
+import json
 
 from time import sleep
 
 blacklist = set()
 logger = logging.getLogger()
+logger.addHandler(logging.StreamHandler())
 
 random.seed()
 
@@ -45,7 +47,7 @@ settings = {"Max_Clients":'62',
             "Database_Pass":"pass",
             "Database_Name":"test",
             "Reserve_Time":'360',
-            "Timeout_Time":'540',
+            "Timeout_Time":'30',
             "Machine_Check":"20",
             "Use_Blacklist":'False',
             "Auto_Blacklist":'False',
@@ -201,11 +203,17 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     def lineReceived(self, line):
         #We can receieve 2 types of lines from a client, pool request (pr), machine request(mr)
-        request = line.split(':')
+        try:
+            request = json.loads(line)
+        except ValueError:
+            request = line.split(':')
+
         user = request[1]
         password = request[2]
         try:
-            self.groups = self.user_groups(user, password)
+            # TODO
+            #self.groups = self.user_groups(user, password)
+            self.groups = ['mypool']
         except ldap.INVALID_CREDENTIALS:
             self.send_error("Invalid credentials")
             return

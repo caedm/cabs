@@ -14,7 +14,7 @@ COPY app/requirements.txt /tmp
 RUN pip install -r /tmp/requirements.txt
 
 # install cabs
-COPY ./build/cabsbroker-7.1.5856.2/ /tmp/broker
+COPY ./app/ /tmp/broker
 RUN /tmp/broker/install.sh && rm -r /tmp/broker
 
 # run

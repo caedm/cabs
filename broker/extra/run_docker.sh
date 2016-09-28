@@ -2,9 +2,8 @@
 network=cabsnet
 
 cd "$(dirname $(dirname "${BASH_SOURCE[0]}"))"
-make
 docker build -t cabsbroker .
-opts="--rm -v $PWD:/code --network=$network --net-alias broker"
+opts="--rm -v $PWD:/code -p 18181:18181 --network=$network --net-alias broker"
 if [ $# -gt 0 ]; then
     opts+=' -it'
 fi

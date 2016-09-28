@@ -1,5 +1,5 @@
 from django.shortcuts import render, render_to_response
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.core.urlresolvers import reverse
 from django.contrib.auth import views
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -54,6 +54,11 @@ def can_edit(user):
 def index(request, permission_error=None):
     context = {}
     if not request.user.is_authenticated():
+        if settings.DEBUG:
+            from django.contrib.auth.models import User
+            if not User.objects.filter(username='cabstest').exists():
+                print "cabstest doesn't exist, creating now..."
+                User.objects.create_user(username='cabstest', password='password').save()
         template_response = views.login(request, template_name='cabs_admin/logindex.html', 
                 current_app='cabs_admin', extra_context=context)
         return template_response

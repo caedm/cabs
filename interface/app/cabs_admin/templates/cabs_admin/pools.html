@@ -45,7 +45,9 @@
         {% csrf_token %}
         <div class="form-group">
             <label for="name">Pool Name:</label>
-            <input type="text" class="form-control" name="name" title="Pool Name" data-toggle="tooltip" data-placement="top" pattern="^[\w-_]+$">
+            <input type="text" class="form-control" name="name" title="Pool Name"
+                                                                data-toggle="tooltip"
+                                                                data-placement="top">
         </div>
         <div class="form-group">
             <label for="description">Pool Description:</label>

@@ -180,3 +180,13 @@ try:
     from local_settings import *
 except ImportError as e:
     pass
+
+if DEBUG:
+    AUTHENTICATION_BACKENDS = (
+        'django.contrib.auth.backends.ModelBackend',
+    )
+    CABS_LDAP_CAN_EDIT_GROUPS = [ ]
+    CABS_LDAP_CAN_DISABLE_GROUPS = [ ]
+    CABS_LDAP_CAN_VIEW_GROUPS = [ ]
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False

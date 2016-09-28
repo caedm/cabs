@@ -9,6 +9,7 @@ from os.path import isfile
 from ast import literal_eval
 
 import wx
+import json
 
 
 settings = {}
@@ -90,9 +91,11 @@ def getPools(user, password, host, port, retry=0):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, port))
     if settings.get("RGS_Version") == True:
-        content = "prv:{0}:{1}:{2}".format(user, password, getRGSversion())
+        #content = "prv:{0}:{1}:{2}".format(user, password, getRGSversion())
+        content = json.dumps(['prv', user, password, getRGSversion()]) + '\r\n'
     else:
-        content = "pr:{0}:{1}\r\n".format(user, password)
+        #content = "pr:{0}:{1}\r\n".format(user, password)
+        content = json.dumps(['pr', user, password]) + '\r\n'
     
     #print "sending {0} to {1}:{2}".format(content, host, port)
 
@@ -129,7 +132,8 @@ def getMachine(user, password, pool, host, port, retry=0):
         return ''
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, port))
-    content = "mr:{0}:{1}:{2}\r\n".format(user, password, pool)
+    #content = "mr:{0}:{1}:{2}\r\n".format(user, password, pool)
+    content = json.dumps(['mr', user, password, pool]) + '\r\n'
     #content = 'mr:notauser:fakepass:Main\r\n'
     if (settings.get("SSL_Cert") is None) or (settings.get("SSL_Cert") == 'None'):
         s_wrapped = s
@@ -837,7 +841,7 @@ class MainWindow(wx.Frame):
             self.sizer.Fit(self)
             #self.SetSize((450,-1))
             self.SetSize((-1,-1))
-    
+
     def handleSettings(self, e):
         if e.GetId() == ID_SUBMIT_BUTTON:
             #do a Pool Request
@@ -851,7 +855,7 @@ class MainWindow(wx.Frame):
             else:
                 server = self.notebook.server.GetValue()
                 port = self.notebook.port.GetValue()
-            
+
             try:
                 pools = getPools(username, password, server, port)
                 self.poolDialog(pools, username, password, server, port)
@@ -1022,6 +1026,7 @@ def main():
     
         if rgscommand:
             print "executing command: " + ' '.join(rgscommand)
+            return
             p = subprocess.Popen(rgscommand)
             watchProcess(p.pid)
     else:

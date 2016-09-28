@@ -13,7 +13,7 @@ RUN echo user1 > /tmp/users.txt
 RUN chmod +x /usr/bin/who
 
 # install cabs
-COPY ./build/cabsagent-7.1.5856.2/ /tmp/agent
+COPY ./app/ /tmp/agent
 RUN /tmp/agent/install.sh && rm -r /tmp/agent
 
 # run
