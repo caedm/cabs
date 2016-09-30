@@ -11,6 +11,9 @@ from ast import literal_eval
 import wx
 import json
 
+if getattr(sys, 'frozen', False):
+    __file__ = sys.executable
+
 
 settings = {}
 try:
@@ -1026,7 +1029,7 @@ def main():
     
         if rgscommand:
             print "executing command: " + ' '.join(rgscommand)
-            return
+            #return
             p = subprocess.Popen(rgscommand)
             watchProcess(p.pid)
     else:
