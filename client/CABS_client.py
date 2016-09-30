@@ -9,7 +9,10 @@ from os.path import isfile
 from ast import literal_eval
 
 import wx
+import json
 
+if getattr(sys, 'frozen', False):
+    __file__ = sys.executable
 
 settings = {}
 try:
@@ -90,9 +93,9 @@ def getPools(user, password, host, port, retry=0):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, port))
     if settings.get("RGS_Version") == True:
-        content = "prv:{0}:{1}:{2}".format(user, password, getRGSversion())
+        content = json.dumps(['prv', user, password, getRGSversion()]) + '\r\n'
     else:
-        content = "pr:{0}:{1}\r\n".format(user, password)
+        content = json.dumps(['pr', user, password]) + '\r\n'
     
     #print "sending {0} to {1}:{2}".format(content, host, port)
 
@@ -129,8 +132,7 @@ def getMachine(user, password, pool, host, port, retry=0):
         return ''
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, port))
-    content = "mr:{0}:{1}:{2}\r\n".format(user, password, pool)
-    #content = 'mr:notauser:fakepass:Main\r\n'
+    content = json.dumps(['mr', user, password, pool]) + '\r\n'
     if (settings.get("SSL_Cert") is None) or (settings.get("SSL_Cert") == 'None'):
         s_wrapped = s
     else:

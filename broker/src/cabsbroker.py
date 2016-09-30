@@ -24,6 +24,7 @@ import os
 import socket
 import ssl
 import re
+import json
 
 from time import sleep
 
@@ -200,7 +201,13 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     def lineReceived(self, line):
         #We can receieve 2 types of lines from a client, pool request (pr), machine request(mr)
-        request = line.split(':')
+
+        try:
+            request = json.loads(line)
+        except ValueError:
+            # fallback for old versions of client
+            request = line.split(':')
+
         user = request[1]
         password = request[2]
         try:
