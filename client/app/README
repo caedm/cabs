@@ -1,1 +1,4 @@
 To install, run `./install.sh` as root.
+
+NOTE: Only ubuntu and red hat are supported. If you are not using a debian- or
+rpm-based linux distribution, the installer will fail.

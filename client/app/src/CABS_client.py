@@ -7,13 +7,14 @@ import os
 from time import sleep
 from os.path import isfile
 from ast import literal_eval
+from os.path import dirname, join, abspath
 
 import wx
 import json
 
 if getattr(sys, 'frozen', False):
     __file__ = sys.executable
-
+root = dirname(abspath(__file__))
 
 settings = {}
 try:
@@ -773,7 +774,7 @@ class MainWindow(wx.Frame):
     def InitUI(self):
         
         p = wx.Panel(self)
-        headerimage = wx.Image('Header.png', wx.BITMAP_TYPE_ANY)
+        headerimage = wx.Image(join(root, 'Header.png'), wx.BITMAP_TYPE_ANY)
         header = wx.StaticBitmap(p, wx.ID_ANY, wx.BitmapFromImage(headerimage))
         
         self.sizer = wx.BoxSizer(wx.VERTICAL)
@@ -1028,8 +1029,6 @@ def main():
         app.MainLoop()
     
         if rgscommand:
-            print "executing command: " + ' '.join(rgscommand)
-            #return
             p = subprocess.Popen(rgscommand)
             watchProcess(p.pid)
     else:
