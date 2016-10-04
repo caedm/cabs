@@ -16,6 +16,12 @@ if getattr(sys, 'frozen', False):
     __file__ = sys.executable
 root = dirname(abspath(__file__))
 
+try:
+    with open(join(root, 'version.txt'), 'r') as f:
+        version=f.read().strip()
+except IOError:
+    version=""
+
 settings = {}
 try:
     import psutil
@@ -117,7 +123,6 @@ def getPools(user, password, host, port, retry=0):
         pools += chunk
         if chunk == '':
             break;
-    print "got pools: {}".format(repr(pools))
     if pools.startswith("Err:"):
         if (pools == "Err:RETRY") and (retry < 6):
             sleep(retry)
@@ -660,14 +665,14 @@ class OtherTab(wx.Panel):
     def InitUI(self):
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         
-        self.savebttn = wx.Button(self, ID_SAVE_BUTTON, label="Save Settings")
-        self.sizer.Add(self.savebttn, 0, wx.EXPAND)
-        
-        self.resetbttn = wx.Button(self, ID_RESET_BUTTON, label="Reset Defaults")
-        self.sizer.Add(self.resetbttn, 0, wx.EXPAND)
-        
-        self.savebttn.Bind(wx.EVT_BUTTON, self.passOn)
-        self.resetbttn.Bind(wx.EVT_BUTTON, self.passOn)
+        #self.savebttn = wx.Button(self, ID_SAVE_BUTTON, label="Save Settings")
+        #self.sizer.Add(self.savebttn, 0, wx.EXPAND)
+        #
+        #self.resetbttn = wx.Button(self, ID_RESET_BUTTON, label="Reset Defaults")
+        #self.sizer.Add(self.resetbttn, 0, wx.EXPAND)
+        #
+        #self.savebttn.Bind(wx.EVT_BUTTON, self.passOn)
+        #self.resetbttn.Bind(wx.EVT_BUTTON, self.passOn)
         
         self.domandserv = DomainAndServer(self)
         self.sizer.Add(self.domandserv, 0, wx.EXPAND | wx.ALL, 18)
@@ -761,8 +766,7 @@ class PickPoolDialog(wx.Dialog):
 
 class MainWindow(wx.Frame):
     def __init__(self, parent):
-        #wx.Frame.__init__(self, parent, title="CABS", size=(450,-1))
-        wx.Frame.__init__(self, parent, title="CABS", size=(-1,-1))
+        wx.Frame.__init__(self, parent, title="RGSConnect v" + version, size=(-1,-1))
         self.CreateStatusBar()
         
         self.InitUI()

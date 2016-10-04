@@ -9,9 +9,10 @@ all: ubuntu rhel archive
 
 archive:
 	mkdir -p build/$(NAME)
-	cp -r app/* build/$(NAME)
+	cp -rL app/* build/$(NAME)
 	cp $(GEN)/dist/RGSConnect-ubuntu build/$(NAME)/src/
 	cp $(GEN)/dist/RGSConnect-rhel build/$(NAME)/src/
+	cp ../version.txt build/$(NAME)/src/version.txt
 	rm build/$(NAME)/src/CABS_client.py
 	tar -C build -cvf build/$(NAME).tar.gz $(NAME)/
 

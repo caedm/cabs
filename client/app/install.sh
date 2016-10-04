@@ -4,7 +4,7 @@ if [ $UID -ne 0 ]; then
     exit 1
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")"/src
-files="CABS_client.conf cert.pem Header.png Icon.ico Icon.png"
+files="CABS_client.conf cert.pem Header.png Icon.ico Icon.png version.txt"
 
 if type -P apt-get; then
     if dpkg -l rgsconnect >/dev/null 2>&1 ; then
