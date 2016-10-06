@@ -3,10 +3,12 @@
 #--------------------------------
 
 # The name of the installer
-Name "CABS Windows Client"
+#Name "CABS Windows Client"
+Name "RGSConnect"
 
 # The file to write
-OutFile "Install_CABS_Full_Client.exe"
+#OutFile "Install_CABS_Full_Client.exe"
+OutFile "../install_rgsconnect-${VERSION}.exe"
 
 # The default installation directory
 InstallDir "C:\Program Files\CABS\Client"
@@ -47,8 +49,7 @@ Section "CABS Client (required)"
   File "CABS_client.exe"
   File "Header.png"
   File "Icon.ico"
-  
-  #Copy over the other items
+  File "version.txt"
   File "CABS_client.conf"
   File "cert.pem"
   
@@ -80,6 +81,7 @@ Section "Uninstall"
   Delete $INSTDIR\CABS_client.exe
   Delete $INSTDIR\Header.png
   Delete $INSTDIR\Icon.ico
+  Delete $INSTDIR\version.txt
   Delete $INSTDIR\CABS_client.conf
   FindFirst $0 $1 $INSTDIR\*.pem
 	Delete $INSTDIR\$1

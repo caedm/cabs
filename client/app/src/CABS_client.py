@@ -101,18 +101,13 @@ def getPools(user, password, host, port, retry=0):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, port))
     if settings.get("RGS_Version") == True:
-        #content = "prv:{0}:{1}:{2}".format(user, password, getRGSversion())
         content = json.dumps(['prv', user, password, getRGSversion()]) + '\r\n'
     else:
-        #content = "pr:{0}:{1}\r\n".format(user, password)
         content = json.dumps(['pr', user, password]) + '\r\n'
     
-    #print "sending {0} to {1}:{2}".format(content, host, port)
-
     if (settings.get("SSL_Cert") is None) or (settings.get("SSL_Cert") == 'None'):
         s_wrapped = s
     else:
-        #s_wrapped = ssl.wrap_socket(s, ca_certs=settings.get("SSL_Cert"), ssl_version=ssl.PROTOCOL_SSLv23)
         ssl_cert = os.path.dirname(os.path.abspath(__file__)) + "/" + settings.get("SSL_Cert")
         s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
     
@@ -141,13 +136,10 @@ def getMachine(user, password, pool, host, port, retry=0):
         return ''
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, port))
-    #content = "mr:{0}:{1}:{2}\r\n".format(user, password, pool)
     content = json.dumps(['mr', user, password, pool]) + '\r\n'
-    #content = 'mr:notauser:fakepass:Main\r\n'
     if (settings.get("SSL_Cert") is None) or (settings.get("SSL_Cert") == 'None'):
         s_wrapped = s
     else:
-        #s_wrapped = ssl.wrap_socket(s, ca_certs=settings.get("SSL_Cert"), ssl_version=ssl.PROTOCOL_SSLv23)
         ssl_cert = os.path.dirname(os.path.abspath(__file__)) + "/" + settings.get("SSL_Cert")
         s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
     
@@ -930,6 +922,7 @@ class MainWindow(wx.Frame):
                 command = []
                 command.append(settings.get("RGS_Location"))
                 command.append("-nosplash")
+                command.append("-Rgreceiver.IsDisconnectWarningEnabled=1")
                 command.append("-Rgreceiver.Session.0.IsConnectOnStartup=1")
                 command.append("-Rgreceiver.Session.0.Hostname="+address)
                 command.append("-Rgreceiver.Session.0.Username="+username)
