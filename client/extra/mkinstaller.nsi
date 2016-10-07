@@ -37,9 +37,14 @@ UninstPage instfiles
 
 #--------------------------------
 
-# The stuff to install
-Section "CABS Client (required)"
+Section "HP rgreceiver (required)"
+    SectionIn RO
+    File "ReceiverSetup.exe"
+    ExecWait "$INSTDIR\ReceiverSetup.exe"
+SectionEnd
 
+# The stuff to install
+Section "RGSConnect (required)"
   SectionIn RO
   
   # Set output path to the installation directory.
@@ -83,6 +88,7 @@ Section "Uninstall"
   Delete $INSTDIR\Icon.ico
   Delete $INSTDIR\version.txt
   Delete $INSTDIR\CABS_client.conf
+  Delete $INSTDIR\ReceiverSetup.exe
   FindFirst $0 $1 $INSTDIR\*.pem
 	Delete $INSTDIR\$1
   FindClose $0

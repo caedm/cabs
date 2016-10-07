@@ -43,7 +43,7 @@ windows: $(DIST)/RGSConnect-windows.exe
 	cp -rL app/src/* $(DIR)
 	cp $(DIST)/RGSConnect-windows.exe $(DIR)/CABS_client.exe
 	cp ../version.txt $(DIR)/version.txt
-	cp extra/mkinstaller.nsi $(DIR)
+	cp extra/{mkinstaller.nsi,ReceiverSetup.exe} $(DIR)
 	makensis -DVERSION=$(VERSION) $(DIR)/mkinstaller.nsi
 
 clean:
