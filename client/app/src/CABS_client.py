@@ -12,6 +12,8 @@ from os.path import dirname, join, abspath
 import wx
 import json
 
+DEBUG = True
+
 if getattr(sys, 'frozen', False):
     __file__ = sys.executable
 root = dirname(abspath(__file__))
@@ -1026,6 +1028,9 @@ def main():
         app.MainLoop()
     
         if rgscommand:
+            if DEBUG:
+                 print rgscommand
+                 return
             p = subprocess.Popen(rgscommand)
             watchProcess(p.pid)
     else:

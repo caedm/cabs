@@ -114,6 +114,8 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
             # "Unknown" is statusMap[-1]
             statusMap = ["Not Found", "Not Running", "Not Connected", "Okay", "Unknown"]
             procStatus = "{} : {}".format(procName, statusMap[statusId])
+        else:
+            procStatus = 'Okay'
         result = yield dbpool.runQuery("SELECT status FROM machines WHERE machine = %s", (host,))
         if len(result) == 0:
             # Machine isn't in our database.

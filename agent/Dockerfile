@@ -9,7 +9,7 @@ RUN pip install -r /tmp/requirements.txt
 
 # install mock who program
 COPY extra/who.sh /usr/bin/who
-RUN echo user1 > /tmp/users.txt
+RUN touch /tmp/users.txt
 RUN chmod +x /usr/bin/who
 
 # install cabs
@@ -17,4 +17,5 @@ COPY ./app/ /tmp/agent
 RUN /tmp/agent/install.sh && rm -r /tmp/agent
 
 # run
-CMD ["/opt/cabsagent/cabsagent.py"]
+COPY extra/entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]

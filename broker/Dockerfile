@@ -19,6 +19,6 @@ RUN /tmp/broker/install.sh && rm -r /tmp/broker
 
 # run
 RUN sed -i 's/^bind-address/#bind-address/' /etc/mysql/my.cnf
-COPY extra/entrypoint.sh extra/createdb.sql /
+COPY extra/entrypoint.sh extra/createdb.sql extra/populatedb.sql /
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/opt/cabsbroker/cabsbroker.py"]
