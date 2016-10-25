@@ -205,6 +205,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     def lineReceived(self, line):
         #We can receieve 2 types of lines from a client, pool request (pr), machine request(mr)
+        logger.debug("received line from client: {}".format(line))
         try:
             request = json.loads(line)
         except ValueError:
@@ -215,7 +216,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         try:
             # TODO
             #self.groups = self.user_groups(user, password)
-            self.groups = ['mypool']
+            self.groups = ['main', 'secondary', 'other']
         except ldap.INVALID_CREDENTIALS:
             self.send_error("Invalid credentials")
             return
@@ -276,9 +277,15 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     @defer.inlineCallbacks
     def prev_machine(self, user, requestedpool):
-        # Don't give back a machine that hasn't been confirmed. If a machine is sketchy and the user can't
-        # log in, we don't want to give them the same machine when they request another one.
-        query = "SELECT machine FROM current WHERE user = %s AND name = %s AND confirmed = True"
+        # Don't give back a machine that hasn't been confirmed. If a machine is sketchy and the
+        # user can't log in, we don't want to give them the same machine when they request
+        # another one.
+        #query = "SELECT machine FROM current WHERE user = %s AND name = %s AND confirmed = True"
+        query = (r'SELECT current.machine FROM current LEFT JOIN machines ON '
+                  'current.machine = machines.machine WHERE user = %s AND confirmed = True '
+                  'AND (SELECT CONCAT_WS(",", name, secondary) FROM pools WHERE name = %s) '
+                  'REGEXP CONCAT("\\b", machines.name, "\\b")')
+
         prevMachine = yield dbpool.runQuery(query, (user, requestedpool))
         if len(prevMachine) == 0:
             defer.returnValue(None)
@@ -302,7 +309,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             defer.returnValue(machine)
         defer.returnValue(None)
 
-    ## Sends the list of pools accesable to the user
+    ## Sends the list of pools accessable to the user
     def writePools(self, listpools):
         for item in listpools:
             pool, description = item
@@ -357,7 +364,8 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         return groups
     
     def available_pools(self, user, password):
-        query = "SELECT name, description FROM pools WHERE deactivated = False AND (groups IS NULL"
+        query = ("SELECT name, description FROM pools WHERE deactivated = False AND "
+                 "(groups IS NULL")
         if len(self.groups) > 0:
             query += " OR groups REGEXP %s)"
             regexstring = "|".join("(.*{0}.*)".format(group) for group in self.groups)
@@ -420,9 +428,9 @@ class CommandHandler(LineOnlyReceiver):
     ruok
     """
 
-    commands = ('query', 'tell_agent', 'autoit', 'ruok', 'add_machine')
+    commands = ('query', 'tell_agent', 'autoit', 'ruok', 'add_machine', 'dump')
 
-    log_levels = {'debug': ['query', 'ruok'],
+    log_levels = {'debug': ['query', 'ruok', 'dump'],
                   'info':  ['tell_agent', 'autoit', 'add_machine']}
 
     def lineReceived(self, line):
@@ -478,6 +486,22 @@ class CommandHandler(LineOnlyReceiver):
         for line in response:
             str_response += ','.join([str(x) for x in line[:3]])
             str_response += ',1,' if line[3] is not None else ',0,'
+            str_response += ','.join([str(x) for x in line[4:]])
+            str_response += '\n'
+        self.transport.write(str_response)
+        self.transport.loseConnection()
+
+    @defer.inlineCallbacks
+    def dump(self):
+        response = yield dbpool.runQuery(
+                "SELECT machines.name, machines.machine, status, user, deactivated, reason,
+                confirmed, connecttime" + \
+                "FROM machines LEFT OUTER JOIN current ON machines.machine = current.machine")
+        data = 
+        str_response = ""
+        for line in response:
+            str_response += ','.join([str(x) for x in line[:3]])
+            str_response += ',' + line[3] + ',' if line[3] is not None else ',0,'
             str_response += ','.join([str(x) for x in line[4:]])
             str_response += '\n'
         self.transport.write(str_response)
