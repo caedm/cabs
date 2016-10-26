@@ -72,6 +72,8 @@ settings = {"Max_Clients":'62',
             "One_Connection":'True',
             "Trusted_Clients":None }
 
+hosed = True
+
 ## Handles each Agent connection
 class HandleAgent(LineOnlyReceiver, TimeoutMixin):
     def __init__(self, factory):
