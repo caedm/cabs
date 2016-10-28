@@ -122,8 +122,8 @@ if os.name == "posix":
         graphical_users = [line.split() for line in check_output("who").split('\n')
                                         if " :0" in line]
         if graphical_users:
-            user = graphical_users[0]
-            display = graphical_users[1]
+            user = graphical_users[0][0]
+            display = graphical_users[0][1]
             info = win_info(user, display).split('\n')
             y_coords = [line.split()[3] for line in info if "Top Expanded Edge Panel" in line]
             no_panel = any(int(coord) < 0 for coord in y_coords)

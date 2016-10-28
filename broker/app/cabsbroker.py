@@ -111,11 +111,14 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
     @defer.inlineCallbacks
     def updateMachine(self, host, procStatus):
         if procStatus is not None:
-            procName, statusId = re.search(r'([^\d-]*)(-?\d+)', procStatus).groups()
-            statusId = int(statusId)
-            # "Unknown" is statusMap[-1]
-            statusMap = ["Not Found", "Not Running", "Not Connected", "Okay", "Unknown"]
-            procStatus = "{} : {}".format(procName, statusMap[statusId])
+            try:
+                match = re.search(r'([^\d-]*)(-?\d+)', procStatus)
+                if match:
+                    procName, statusId = match.groups()
+                    statusId = int(statusId)
+                    # "Unknown" is statusMap[-1]
+                    statusMap = ["Not Found", "Not Running", "Not Connected", "Okay", "Unknown"]
+                    procStatus = "{} : {}".format(procName, statusMap[statusId])
         else:
             procStatus = 'Okay'
         result = yield dbpool.runQuery("SELECT status FROM machines WHERE machine = %s", (host,))
