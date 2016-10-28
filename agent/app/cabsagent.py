@@ -7,6 +7,7 @@ import socket, ssl
 import sys
 import os
 import subprocess
+from subprocess import check_output
 import re
 import signal
 import traceback
@@ -18,6 +19,21 @@ from twisted.internet.protocol import Factory, Protocol
 from twisted.internet.ssl import Certificate, PrivateCertificate
 from twisted.internet import reactor, endpoints
 from twisted.protocols.basic import LineOnlyReceiver
+
+DEBUG = True
+
+if DEBUG:
+    from os.path import isfile
+
+    def win_info(user, display):
+        template = ('0x01e00003 -1 0    {}  1024 24   rgsl-07 Top Expanded Edge Panel\n'
+                    '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
+        return template.format('-48' if isfile('/tmp/nopanel') else '0')
+
+else:
+    def win_info(user, display):
+        return check_output("DISPLAY={} sudo -u {} wmctrl -lG".format(
+                            display, user), shell=True)
 
 try:
     import psutil
@@ -44,6 +60,28 @@ settings = { "Host_Addr":'broker',
              "Interval":6,
              "Process_Listen":None,
              "Hostname":None }
+
+def ps_check():
+    # get the status of a process that matches settings.get("Process_Listen")
+    # then check to make sure it has at least one listening conection on windows, you can't
+    # search processes by yourself, so Popen "tasklist" to try to find the pid for the name
+    # then use psutil to view the connections associated with that
+    if not psutil:
+        return "Okay"
+     
+    ps_name = settings.get("Process_Listen")
+    process = find_process()
+    if process is None:
+        return ps_name + " not found"
+    if not process.is_running():
+        return ps_name + " not running"
+    for conn in process.connections():
+        if conn.status in [psutil.CONN_ESTABLISHED, psutil.CONN_SYN_SENT,
+                           psutil.CONN_SYN_RECV, psutil.CONN_LISTEN]:
+            return "Okay"
+    return ps_name + " not connected"
+
+checks = [ps_check]
 
 if os.name == "posix":
     def user_list():
@@ -75,6 +113,25 @@ if os.name == "posix":
         subprocess.call(["init", "2"])
         Timer(10, subprocess.call, (["init", "5"],)).start()
         #subprocess.call(["init", "5"])
+
+    # We can only check if there's a panel when someone is logged in. If the user logs out, we
+    # want to remember that there wasn't a panel.
+    no_panel = False
+    def panel_check():
+        global no_panel
+        graphical_users = [line.split() for line in check_output("who").split('\n')
+                                        if " :0" in line]
+        if graphical_users:
+            user = graphical_users[0][0]
+            display = graphical_users[0][1]
+            info = win_info(user, display).split('\n')
+            y_coords = [line.split()[3] for line in info if "Top Expanded Edge Panel" in line]
+            no_panel = any(int(coord) < 0 for coord in y_coords)
+
+        return "no panel" if no_panel else "Okay"
+
+    checks.append(panel_check)
+
 else:
     assert os.name == "nt"
     #import win32service
@@ -133,16 +190,7 @@ def heartbeat_loop():
         s.run()
 
 def heartbeat():
-    userlist = user_list()
-    print userlist
-    if settings.get("Process_Listen") is not None and psutil is not None:
-        content = "spr:" + settings.get("Process_Listen") + str(getStatus()) + ":" + \
-                    settings.get("Hostname")
-    else:
-        content = "sr:" + settings.get("Hostname")
-    for user in userlist:
-        content += ":{0}".format(user)
-    content += "\r\n"
+    content = "spr:{}:{}:{}\r\n".format(getStatus(), settings["Hostname"], ":".join(user_list()))
     print "sending " + content
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -160,34 +208,9 @@ def heartbeat():
         traceback.print_exc()
 
 def getStatus():
-    #get the status of a process that matches settings.get("Process_Listen")
-    #then check to make sure it has at least one listening conection
-    #on windows, you can't search processes by yourself, so Popen "tasklist" to try to find the pid for the name
-    #then use psutil to view the connections associated with that
-    #if not settings.get("Process_Listen") or psutil is None:
-    #    return ERR_GET_STATUS
-     
-    #We really need admin privledges for this
-    #try:
-    assert psutil is not None
-    process = find_process()
-    if process is None:
-        return STATUS_PS_NOT_FOUND
-    if not process.is_running():
-        return STATUS_PS_NOT_RUNNING
-    #connections = False
-    for conn in process.connections():
-        if conn.status in [psutil.CONN_ESTABLISHED, psutil.CONN_SYN_SENT,
-                           psutil.CONN_SYN_RECV, psutil.CONN_LISTEN]:
-            return STATUS_PS_OK
-            #connections = True
-    return STATUS_PS_NOT_CONNECTED
-    #if not connections:
-    #    return STATUS_PS_NOT_CONNECTED
-    #else:
-    #    return STATUS_PS_OK
-    #except:
-    #    return ERR_GET_STATUS
+    problems = [result for result in [func() for func in checks]
+                       if result != "Okay"]
+    return ",".join(problems) if problems else "Okay"
 
 class CommandHandler(LineOnlyReceiver):
     """Recognized commands:
