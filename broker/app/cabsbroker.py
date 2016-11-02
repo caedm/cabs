@@ -625,7 +625,6 @@ def readConfigFile():
     filelocation = "cabsbroker.conf"
     if not os.path.isfile(filelocation):
         return
-    return
     with open(filelocation, 'r') as f:
         for line in f:
             line = line.strip()
