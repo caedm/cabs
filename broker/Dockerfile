@@ -14,11 +14,11 @@ COPY app/requirements.txt /tmp
 RUN pip install -r /tmp/requirements.txt
 
 # install cabs
-COPY ./app/ /tmp/broker
-RUN /tmp/broker/install.sh && rm -r /tmp/broker
+#COPY ./app/ /tmp/broker
+#RUN /tmp/broker/install.sh && rm -r /tmp/broker
 
 # run
 RUN sed -i 's/^bind-address/#bind-address/' /etc/mysql/my.cnf
-COPY extra/entrypoint.sh extra/createdb.sql extra/populatedb.sql /
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/opt/cabsbroker/cabsbroker.py"]
+ENTRYPOINT ["/code/extra/entrypoint.sh"]
+WORKDIR /code/app
+CMD ["bash"]

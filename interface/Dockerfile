@@ -12,11 +12,12 @@ RUN apt-get -y install libmysqlclient-dev
 RUN pip install django-auth-ldap MySQL-python
 
 # install cabs interface
-RUN apt-get -y install libapache2-mod-wsgi
-COPY ./app /tmp/app
-RUN /tmp/app/install.sh && rm -r /tmp/app
+#RUN apt-get -y install libapache2-mod-wsgi
+#COPY ./app /tmp/app
+#RUN /tmp/app/install.sh && rm -r /tmp/app
 
 # run
-WORKDIR /opt/cabsinterface
-COPY extra/cmd.sh /cmd.sh
-CMD ["bash", "/cmd.sh"]
+#WORKDIR /opt/cabsinterface
+WORKDIR /code/app
+#COPY extra/cmd.sh /cmd.sh
+CMD ["bash", "/code/extra/cmd.sh"]

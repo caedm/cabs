@@ -1,3 +1,5 @@
 #!/bin/bash
-service apache2 start
-while true; do sleep 100; done
+echo starting up
+./manage.py migrate
+echo done migrating
+./manage.py runserver 0.0.0.0:80

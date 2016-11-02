@@ -28,6 +28,8 @@ import json
 
 from time import sleep
 
+DEBUG = True
+
 blacklist = set()
 logger = logging.getLogger()
 logger.addHandler(logging.StreamHandler())
@@ -46,8 +48,8 @@ settings = {"Max_Clients":'62',
             "Database_Usr":"user",
             "Database_Pass":"pass",
             "Database_Name":"test",
-            "Reserve_Time":'360',
-            "Timeout_Time":'30',
+            "Reserve_Time":'15',
+            "Timeout_Time":'15',
             "Machine_Check":"20",
             "Use_Blacklist":'False',
             "Auto_Blacklist":'False',
@@ -95,6 +97,7 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
         #types of reports = status report (sr) and status process report (spr)
         # line: "sr:<hostname>:[user1]:[user2]:[...]
         #       "spr:<proc_status>:<hostname>:[user1]:[user2]:[...]
+        logger.debug("received line from agent: {}".format(line))
         report = line.split(':')
         reportType = report[0]
         procStatus = None
@@ -111,14 +114,13 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
     @defer.inlineCallbacks
     def updateMachine(self, host, procStatus):
         if procStatus is not None:
-            try:
-                match = re.search(r'([^\d-]*)(-?\d+)', procStatus)
-                if match:
-                    procName, statusId = match.groups()
-                    statusId = int(statusId)
-                    # "Unknown" is statusMap[-1]
-                    statusMap = ["Not Found", "Not Running", "Not Connected", "Okay", "Unknown"]
-                    procStatus = "{} : {}".format(procName, statusMap[statusId])
+            match = re.search(r'([^\d-]*)(-?\d+)', procStatus)
+            if match:
+                procName, statusId = match.groups()
+                statusId = int(statusId)
+                # "Unknown" is statusMap[-1]
+                statusMap = ["Not Found", "Not Running", "Not Connected", "Okay", "Unknown"]
+                procStatus = "{} : {}".format(procName, statusMap[statusId])
         else:
             procStatus = 'Okay'
         result = yield dbpool.runQuery("SELECT status FROM machines WHERE machine = %s", (host,))
@@ -219,9 +221,8 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         user = request[1]
         password = request[2]
         try:
-            # TODO
-            #self.groups = self.user_groups(user, password)
-            self.groups = ['main', 'secondary', 'other']
+            self.groups = (self.user_groups(user, password) if not DEBUG else
+                           ['main', 'secondary', 'other'])
         except ldap.INVALID_CREDENTIALS:
             self.send_error("Invalid credentials")
             return
@@ -285,11 +286,12 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         # Don't give back a machine that hasn't been confirmed. If a machine is sketchy and the
         # user can't log in, we don't want to give them the same machine when they request
         # another one.
-        #query = "SELECT machine FROM current WHERE user = %s AND name = %s AND confirmed = True"
-        query = (r'SELECT current.machine FROM current LEFT JOIN machines ON '
-                  'current.machine = machines.machine WHERE user = %s AND confirmed = True '
-                  'AND (SELECT CONCAT_WS(",", name, secondary) FROM pools WHERE name = %s) '
-                  'REGEXP CONCAT("\\b", machines.name, "\\b")')
+        query = "SELECT machine FROM current WHERE user = %s AND name = %s AND confirmed = True"
+
+        #query = (r'SELECT current.machine FROM current LEFT JOIN machines ON '
+        #          'current.machine = machines.machine WHERE user = %s AND confirmed = True '
+        #          'AND (SELECT CONCAT_WS(",", name, secondary) FROM pools WHERE name = %s) '
+        #          'REGEXP CONCAT("\\b", machines.name, "\\b")')
 
         prevMachine = yield dbpool.runQuery(query, (user, requestedpool))
         if len(prevMachine) == 0:
@@ -498,18 +500,21 @@ class CommandHandler(LineOnlyReceiver):
 
     @defer.inlineCallbacks
     def dump(self):
+        keys = "pool status user deactivated reason confirmed connecttime last_heartbeat".split()
+        type_map = {"confirmed": bool,
+                    "deactivated": bool,
+                    "connecttime": str,
+                    "last_heartbeat": str}
+        convert = lambda key, val: type_map[key](val) if key in type_map else val
+
         response = yield dbpool.runQuery(
-                "SELECT machines.name, machines.machine, status, user, deactivated, reason,
-                confirmed, connecttime" + \
+                "SELECT machines.machine, machines.name, status, user, deactivated, reason, "
+                "confirmed, connecttime, last_heartbeat "
                 "FROM machines LEFT OUTER JOIN current ON machines.machine = current.machine")
-        data = 
-        str_response = ""
-        for line in response:
-            str_response += ','.join([str(x) for x in line[:3]])
-            str_response += ',' + line[3] + ',' if line[3] is not None else ',0,'
-            str_response += ','.join([str(x) for x in line[4:]])
-            str_response += '\n'
-        self.transport.write(str_response)
+
+        data = {line[0]: {key: convert(key, val) for key, val in zip(keys, line[1:])}
+                         for line in response}
+        self.transport.write(json.dumps(data))
         self.transport.loseConnection()
 
     @defer.inlineCallbacks

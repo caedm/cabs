@@ -7,7 +7,7 @@ import socket, ssl
 import sys
 import os
 import subprocess
-from subprocess import check_output
+from subprocess import check_output, check_call
 import re
 import signal
 import traceback
@@ -21,19 +21,6 @@ from twisted.internet import reactor, endpoints
 from twisted.protocols.basic import LineOnlyReceiver
 
 DEBUG = True
-
-if DEBUG:
-    from os.path import isfile
-
-    def win_info(user, display):
-        template = ('0x01e00003 -1 0    {}  1024 24   rgsl-07 Top Expanded Edge Panel\n'
-                    '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
-        return template.format('-48' if isfile('/tmp/nopanel') else '0')
-
-else:
-    def win_info(user, display):
-        return check_output("DISPLAY={} sudo -u {} wmctrl -lG".format(
-                            display, user), shell=True)
 
 try:
     import psutil
@@ -57,9 +44,10 @@ settings = { "Host_Addr":'broker',
              "Broker_Cert":None,
              "Agent_Cert":None,
              "Agent_Priv_Key":None,
-             "Interval":6,
+             "Interval":1,
              "Process_Listen":None,
              "Hostname":None }
+checks = []
 
 def ps_check():
     # get the status of a process that matches settings.get("Process_Listen")
@@ -68,7 +56,7 @@ def ps_check():
     # then use psutil to view the connections associated with that
     if not psutil:
         return "Okay"
-     
+
     ps_name = settings.get("Process_Listen")
     process = find_process()
     if process is None:
@@ -80,8 +68,6 @@ def ps_check():
                            psutil.CONN_SYN_RECV, psutil.CONN_LISTEN]:
             return "Okay"
     return ps_name + " not connected"
-
-checks = [ps_check]
 
 if os.name == "posix":
     def user_list():
@@ -113,6 +99,19 @@ if os.name == "posix":
         subprocess.call(["init", "2"])
         Timer(10, subprocess.call, (["init", "5"],)).start()
         #subprocess.call(["init", "5"])
+
+    if DEBUG:
+        from os.path import isfile
+
+        def win_info(user, display):
+            template = ('0x01e00003 -1 0    {}  1024 24   rgsl-07 Top Expanded Edge Panel\n'
+                        '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
+            return template.format('-48' if isfile('/tmp/nopanel') else '0')
+
+    else:
+        def win_info(user, display):
+            return check_output("DISPLAY={} sudo -u {} wmctrl -lG".format(
+                                display, user), shell=True)
 
     # We can only check if there's a panel when someone is logged in. If the user logs out, we
     # want to remember that there wasn't a panel.
@@ -190,8 +189,8 @@ def heartbeat_loop():
         s.run()
 
 def heartbeat():
-    content = "spr:{}:{}:{}\r\n".format(getStatus(), settings["Hostname"], ":".join(user_list()))
-    print "sending " + content
+    content = "spr:{}:{}{}\r\n".format(getStatus(), settings["Hostname"],
+            "".join(':' + user for user in user_list()))
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((settings.get("Host_Addr"), int(settings.get("Agent_Port"))))
@@ -278,7 +277,11 @@ def stop():
     reactor.callFromThread(reactor.stop)
 
 def start():
+    print("starting up")
     readConfigFile()
+    global checks
+    if settings['Process_Listen'] and psutil:
+        checks.append(ps_check)
     t = Thread(target=heartbeat_loop)
     t.daemon = True
     t.start()

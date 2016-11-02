@@ -13,9 +13,11 @@ RUN touch /tmp/users.txt
 RUN chmod +x /usr/bin/who
 
 # install cabs
-COPY ./app/ /tmp/agent
-RUN /tmp/agent/install.sh && rm -r /tmp/agent
+#COPY ./app/ /tmp/agent
+#RUN /tmp/agent/install.sh && rm -r /tmp/agent
 
 # run
-COPY extra/entrypoint.sh /
-ENTRYPOINT ["/entrypoint.sh"]
+#COPY extra/entrypoint.sh /
+#ENTRYPOINT ["/entrypoint.sh"]
+COPY extra/start.sh /
+CMD ["python", "-u", "/code/app/cabsagent.py"]
