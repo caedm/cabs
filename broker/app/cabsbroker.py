@@ -49,8 +49,8 @@ settings = {"Max_Clients":'62',
             "Database_Pass":"pass",
             "Database_Name":"test",
             "Reserve_Time":'15',
-            "Timeout_Time":'15',
-            "Machine_Check":"20",
+            "Timeout_Time":'5',
+            "Machine_Check":"5",
             "Use_Blacklist":'False',
             "Auto_Blacklist":'False',
             "Auto_Max":'300',
@@ -74,8 +74,6 @@ settings = {"Max_Clients":'62',
             "One_Connection":'True',
             "Trusted_Clients":None }
 
-hosed = True
-
 ## Handles each Agent connection
 class HandleAgent(LineOnlyReceiver, TimeoutMixin):
     def __init__(self, factory):
@@ -97,7 +95,6 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
         #types of reports = status report (sr) and status process report (spr)
         # line: "sr:<hostname>:[user1]:[user2]:[...]
         #       "spr:<proc_status>:<hostname>:[user1]:[user2]:[...]
-        logger.debug("received line from agent: {}".format(line))
         report = line.split(':')
         reportType = report[0]
         procStatus = None
@@ -212,7 +209,6 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     def lineReceived(self, line):
         #We can receieve 2 types of lines from a client, pool request (pr), machine request(mr)
-        logger.debug("received line from client: {}".format(line))
         try:
             request = json.loads(line)
         except ValueError:
@@ -286,12 +282,13 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         # Don't give back a machine that hasn't been confirmed. If a machine is sketchy and the
         # user can't log in, we don't want to give them the same machine when they request
         # another one.
-        query = "SELECT machine FROM current WHERE user = %s AND name = %s AND confirmed = True"
+        #query = "SELECT machine FROM current WHERE user = %s AND name = %s AND confirmed = True"
 
-        #query = (r'SELECT current.machine FROM current LEFT JOIN machines ON '
-        #          'current.machine = machines.machine WHERE user = %s AND confirmed = True '
-        #          'AND (SELECT CONCAT_WS(",", name, secondary) FROM pools WHERE name = %s) '
-        #          'REGEXP CONCAT("\\b", machines.name, "\\b")')
+        query = (r'SELECT current.machine FROM current LEFT JOIN machines ON '
+                  'current.machine = machines.machine '
+                  'WHERE user = %s AND confirmed = True AND status LIKE "%%Okay" '
+                  'AND (SELECT CONCAT_WS(",", name, secondary) FROM pools WHERE name = %s) '
+                  'REGEXP CONCAT("[[:<:]]", machines.name, "[[:>:]]")')
 
         prevMachine = yield dbpool.runQuery(query, (user, requestedpool))
         if len(prevMachine) == 0:
@@ -435,10 +432,10 @@ class CommandHandler(LineOnlyReceiver):
     ruok
     """
 
-    commands = ('query', 'tell_agent', 'autoit', 'ruok', 'add_machine', 'dump')
+    commands = ('query', 'tell_agent', 'autoit', 'ruok', 'dump')
 
     log_levels = {'debug': ['query', 'ruok', 'dump'],
-                  'info':  ['tell_agent', 'autoit', 'add_machine']}
+                  'info':  ['tell_agent', 'autoit']}
 
     def lineReceived(self, line):
         # parse
@@ -474,17 +471,6 @@ class CommandHandler(LineOnlyReceiver):
                 "SELECT machines.name, machines.machine, status, user, deactivated, reason " + \
                 "FROM machines LEFT OUTER JOIN current ON machines.machine = current.machine")
         response.addCallback(self.respond_query, verbose)
-
-    @defer.inlineCallbacks
-    def add_machine(self, hostname, pool):
-        try:
-            result = yield dbpool.runQuery("INSERT INTO machines (machine, name, active, "
-                                "deactivated) VALUES (%s, %s, false, false)", (hostname, pool))
-            self.transport.write("machine added successfully\n")
-        except IntegrityError as e:
-            self.transport.write("couldn't add machine: {}\n".format(e))
-        self.transport.loseConnection()
-        #s = Machines(name=new_name, machine=new_machine, active=False, deactivated=False)
 
     def respond_query(self, response, verbose):
         str_response = ""
@@ -537,7 +523,7 @@ class CommandHandler(LineOnlyReceiver):
 
     def bad_command(self, command):
         logger.info("received bad command: '" + command + "'")
-        self.transport.write("invalid command: " + command + '\n')
+        self.transport.write("unrecognized command: " + command)
         self.transport.loseConnection()
 
     def tell_agent(self, command, hostname):

@@ -9,36 +9,64 @@ import re
 import json
 from threading import Thread
 import sys
+import traceback
 
 machines = [pool + str(i)
             for pool in ('main', 'secondary', 'other')
             for i in range(1, 4)]
-states = ['nopanel']
-
+states = ['no_panel', 'old_status']
 verbose = False
+dump_on_failure = True
+dirty_configs = set()
 
-def test():
-    # setup
-    print('starting containers...')
-    for machine in machines:
-        start(machine)
-    wait(lambda: all(m['status'] == "Okay" for m in dump().values()))
-    print('running tests')
-    global verbose
-    verbose = True
+###############################################################################
+# TESTS
+###############################################################################
+
+def test_machine_timeout():
+    # NOTE: we assume these are the values set in the broker config.
+    broker_machine_check = 5
+    broker_timeout_time = 5
+    wait_time = broker_timeout_time + broker_machine_check
     
-    # test no panel status on agent
-    print("\nTEST NO PANEL STATE")
-    state('main1', 'set', 'nopanel')
+    stop('main1')
+    wait(lambda: dump()['main1']['status'] == None, timeout=wait_time)
+    print('main1 status is null')
+
+    start('main1')
+    wait_heartbeat('main1')
+    assert dump()['main1']['status'] == "Okay"
+    print('main1 status is Okay')
+
+def test_pscheck():
+    write_config('main1', 'Process_Listen', 'foobar')
+    wait_heartbeat('main1')
+    assert dump()['main1']['status'] == 'foobar not found'
+    print('main1 status is "foobar not found"')
+
+    write_config('main1', 'Process_Listen', 'python')
+    wait_heartbeat('main1')
+    assert dump()['main1']['status'] == 'Okay'
+    print('main1 status is "Okay"')
+
+def test_oldstatus():
+    state('main1', 'set', 'oldstatus')
+    wait_heartbeat('main1')
+    status = dump()['main1']['status']
+    assert status.endswith('Okay')
+    print('main1 status is ' + status)
+
+def test_nopanel():
+    state('main1', 'set', 'no_panel')
     logon('main1', 'harry')
     wait_heartbeat('main1')
-    assert dump()['main1']['status'] == 'no panel'
-    print("main1 status is 'no panel'")
+    assert dump()['main1']['status'] == 'no_panel'
+    print("main1 status is 'no_panel'")
 
     logoff('main1')
     wait_heartbeat('main1')
-    assert dump()['main1']['status'] == 'no panel'
-    print("main1 status is 'no panel'")
+    assert dump()['main1']['status'] == 'no_panel'
+    print("main1 status is 'no_panel'")
 
     logon('main2', 'foo')
     logon('main3', 'bar')
@@ -47,35 +75,60 @@ def test():
     assert m.startswith('secondary')
 
     logon('main1', 'steve')
-    state('main1', 'unset', 'nopanel')
+    state('main1', 'unset', 'no_panel')
     wait_heartbeat('main1')
     assert dump()['main1']['status'] == 'Okay'
     print("main1 status is 'Okay'")
-    print("PASS")
 
+def test_restoring():
+    first = request('fred', 'main')
+    second = request('fred', 'main')
+    assert first != second
+
+    logon(first, 'fred')
+    wait(lambda: dump()[first]['confirmed'])
+    second = request('fred', 'main')
+    assert first == second
+
+    state(first, 'set', 'no_panel')
+    wait_heartbeat(first)
+    second = request('fred', 'main')
+    assert first != second
+
+test_funcs = [test_nopanel, test_oldstatus, test_machine_timeout, test_pscheck, test_restoring]
+
+###############################################################################
+# UTILS
+###############################################################################
+
+def setup():
+    clean_configs()
+    [start(m) for m in machines]
+    expected = {'status': "Okay", 'confirmed': False, 'user': None}
+    wait(lambda: all(all(m[key] == expected[key] for key in expected)
+                     for m in dump().values()))
+
+def clean_configs():
+    global dirty_configs
+    for machine in dirty_configs:
+         check_call('docker exec {} rm /etc/cabsagent.conf'.format(machine).split())
+         restart(machine)
+    dirty_configs = set()
+
+def write_config(machine, key, value):
+    global dirty_configs
+    global verbose
+
+    if verbose:
+        print("setting '{}: {}' on {}".format(key, value, machine))
+    check_call(['docker', 'exec', '--', machine, 'bash', '-c',
+                'echo {}: {} >> /etc/cabsagent.conf'.format(key, value)])
+
+    tmp_verbose = verbose
     verbose = False
-    logoff('main1')
-    logoff('main2')
-    logoff('main3')
-    logon(m)
-    wait_heartbeat(m)
-    logoff(m)
-    wait_heartbeat(m)
-    verbose = True
-
-    # test logic for restoring machines
-    #print("requesting two machines")
-    #first = request('fred', 'main')
-    #second = request('fred', 'main')
-    #assert first != second
-
-    #print("logging in and requesting another machine")
-    #logon(first, 'fred')
-    #wait(lambda: dump()[first]['confirmed'])
-    #second = request('fred', 'main')
-    #assert first == second
-
-    print("All tests pass.")
+    restart(machine)
+    verbose = tmp_verbose
+    dirty_configs.add(machine)
 
 def broker_cmd(*args, **kwargs):
     port = kwargs.get('port', 18181)
@@ -96,33 +149,90 @@ def broker_cmd(*args, **kwargs):
     s.close()
     return response
 
-def request(user=None, pool=None):
-    machine = broker_cmd("mr", user, "mypassword", pool)
-    if verbose:
-        print("requested machine from {} for {}. Got {}.".format(pool, user, machine))
-    return machine
-
 def exists(container):
     return bool(check_output('docker ps -aqf name={}'.format(container).split()))
 
 def running(container):
     return bool(check_output('docker ps -qf name={}'.format(container).split()))
 
+def wait_heartbeat(*hosts):
+    beats = {host: dump()[host]['last_heartbeat'] for host in hosts}
+
+    def check():
+        d = dump()
+        return all(d[host]['last_heartbeat'] != beats[host] for host in hosts)
+
+    wait(check)
+
+def wait(func, timeout=10):
+    end_time = time() + timeout
+    while time() < end_time:
+        sleep(1)
+        if func():
+            return
+    raise AssertionError("Timed out while waiting for condition")
+
+def remove(hostname):
+    if running(hostname):
+        check_call(['docker', 'stop', hostname])
+    if exists(hostname):
+        check_call(['docker', 'rm', hostname])
+
+###############################################################################
+# USER COMMANDS
+###############################################################################
+
+def test():
+    # setup
+    global verbose
+
+    for t in test_funcs:
+        try:
+            print(t.__name__.replace('_', ' ').upper())
+            print('setting up...')
+            setup()
+            verbose = True
+            t()
+            verbose = False
+            print("PASS\n")
+        except AssertionError as e:
+            if dump_on_failure:
+                print(json.dumps(dump(), indent=2))
+            traceback.print_exc()
+            clean_configs()
+            return
+
+    print("All tests pass.")
+    print("cleaning up...")
+    setup()
+
+def request(user=None, pool=None):
+    machine = broker_cmd("mr", user, "mypassword", pool)
+    if verbose:
+        print("requested machine from {} for {}. Got {}.".format(pool, user, machine))
+    return machine
+
 def start(hostname=None, user=None):
     if not running(hostname):
         if exists(hostname):
-            check_call(['docker', 'start', hostname])
+            check_output(['docker', 'start', hostname])
         else:
-            check_call('docker run -v $PWD/agent:/code --network=cabsnet --net-alias {hostname} '
+            check_output('docker run -v $PWD/agent:/code --network=cabsnet --net-alias {hostname} '
                        '--hostname {hostname} --name {hostname} -d cabsagent'
                        .format(hostname=hostname), shell=True)
 
     # reset state
-    state(hostname, 'unset', 'nopanel')
-    if dump()[hostname]['status'] != 'Okay':
-        logon(hostname, 'user1')
+    info = dump()[hostname]
+    if info['status'] is None:
         wait_heartbeat(hostname)
-        logoff(hostname)
+        info = dump()[hostname]
+    [state(hostname, 'unset', s) for s in states if s in info['status']]
+    if ' : ' in info['status']:
+        state(hostname, 'unset', 'oldstatus')
+    if 'no_panel' in info['status'] or \
+            (info['user'] is not None and not info['confirmed']):
+        logon(hostname, 'clear_state')
+        wait_heartbeat(hostname)
 
     if user:
         logon(hostname, user)
@@ -134,7 +244,9 @@ def stop(hostname=None):
 
     threads = []
     for m in m_list:
-        t = Thread(target=lambda: check_call(['docker', 'stop', m]))
+        if verbose:
+            print("stopping {}".format(m))
+        t = Thread(target=lambda: check_output(['docker', 'stop', m]))
         t.start()
         threads.append(t)
     [t.join() for t in threads]
@@ -157,29 +269,6 @@ def query():
 def dump():
     return json.loads(broker_cmd("dump", port=18183))
 
-def wait_heartbeat(*hosts):
-    beats = {host: dump()[host]['last_heartbeat'] for host in hosts}
-
-    def check():
-        d = dump()
-        return all(d[host]['last_heartbeat'] != beats[host] for host in hosts)
-
-    wait(check)
-
-def wait(func):
-    end_time = time() + 15
-    while time() < end_time:
-        sleep(1)
-        if func():
-            return
-    raise AssertionError("Timed out while waiting for condition")
-
-def remove(hostname):
-    if running(hostname):
-        check_call(['docker', 'stop', hostname])
-    if exists(hostname):
-        check_call(['docker', 'rm', hostname])
-
 def build():
     check_call('docker build -t cabsagent ./agent'.split())
     print("removing old containers...")
@@ -194,11 +283,9 @@ def build():
 def state(hostname=None, action=None, state=None):
     if verbose:
         print("{}ting state {} on {}.".format(action, state, hostname))
-    if state == 'nopanel':
-        if action == 'set':
-            check_call('docker exec {} touch /tmp/nopanel'.format(hostname).split())
-        if action == 'unset':
-            check_call('docker exec {} rm -f /tmp/nopanel'.format(hostname).split())
+
+    cmd = "touch" if action == 'set' else 'rm -f'
+    check_call('docker exec {} {} /tmp/{}'.format(hostname, cmd, state).split())
 
 def restart(hostname=None, hard=None):
     m_list = [hostname] if hostname else machines

@@ -106,7 +106,7 @@ if os.name == "posix":
         def win_info(user, display):
             template = ('0x01e00003 -1 0    {}  1024 24   rgsl-07 Top Expanded Edge Panel\n'
                         '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
-            return template.format('-48' if isfile('/tmp/nopanel') else '0')
+            return template.format('-48' if isfile('/tmp/no_panel') else '0')
 
     else:
         def win_info(user, display):
@@ -118,6 +118,7 @@ if os.name == "posix":
     no_panel = False
     def panel_check():
         global no_panel
+        print('running panel check')
         graphical_users = [line.split() for line in check_output("who").split('\n')
                                         if " :0" in line]
         if graphical_users:
@@ -127,7 +128,7 @@ if os.name == "posix":
             y_coords = [line.split()[3] for line in info if "Top Expanded Edge Panel" in line]
             no_panel = any(int(coord) < 0 for coord in y_coords)
 
-        return "no panel" if no_panel else "Okay"
+        return "no_panel" if no_panel else "Okay"
 
     checks.append(panel_check)
 
@@ -207,6 +208,9 @@ def heartbeat():
         traceback.print_exc()
 
 def getStatus():
+    if DEBUG and isfile('/tmp/oldstatus'):
+        return "rgsender3"
+
     problems = [result for result in [func() for func in checks]
                        if result != "Okay"]
     return ",".join(problems) if problems else "Okay"
