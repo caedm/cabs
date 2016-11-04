@@ -12,12 +12,9 @@ COPY extra/who.sh /usr/bin/who
 RUN touch /tmp/users.txt
 RUN chmod +x /usr/bin/who
 
-# install cabs
+# install cabs agent
 #COPY ./app/ /tmp/agent
 #RUN /tmp/agent/install.sh && rm -r /tmp/agent
 
 # run
-#COPY extra/entrypoint.sh /
-#ENTRYPOINT ["/entrypoint.sh"]
-COPY extra/start.sh /
 CMD ["python", "-u", "/code/app/cabsagent.py"]
