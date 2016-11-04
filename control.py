@@ -95,7 +95,12 @@ def test_restoring():
     second = request('fred', 'main')
     assert first != second
 
-test_funcs = [test_nopanel, test_oldstatus, test_machine_timeout, test_pscheck, test_restoring]
+def test_handle_json():
+    m = request('fred', 'main', json=True)
+    assert m.startswith('main')
+
+test_funcs = [test_handle_json, test_nopanel, test_oldstatus,
+              test_machine_timeout, test_pscheck, test_restoring]
 
 ###############################################################################
 # UTILS
@@ -132,9 +137,13 @@ def write_config(machine, key, value):
 
 def broker_cmd(*args, **kwargs):
     port = kwargs.get('port', 18181)
+    use_json = kwargs.get('json', False)
+
+    if use_json and verbose:
+        print('wrapping command in json')
 
     # send command
-    command = ":".join(args) + "\r\n"
+    command = (json.dumps if use_json else ":".join)(args) + "\r\n"
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect(("localhost", port))
     s.sendall(command)
@@ -206,8 +215,8 @@ def test():
     print("cleaning up...")
     setup()
 
-def request(user=None, pool=None):
-    machine = broker_cmd("mr", user, "mypassword", pool)
+def request(user=None, pool=None, **kwargs):
+    machine = broker_cmd("mr", user, "mypassword", pool, **kwargs)
     if verbose:
         print("requested machine from {} for {}. Got {}.".format(pool, user, machine))
     return machine
