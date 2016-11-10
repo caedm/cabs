@@ -19,8 +19,8 @@ from twisted.internet.protocol import Factory, Protocol
 from twisted.internet.ssl import Certificate, PrivateCertificate
 from twisted.internet import reactor, endpoints
 from twisted.protocols.basic import LineOnlyReceiver
-
-DEBUG = True
+from argparse import ArgumentParser
+from os.path import isfile
 
 try:
     import psutil
@@ -100,16 +100,13 @@ if os.name == "posix":
         Timer(10, subprocess.call, (["init", "5"],)).start()
         #subprocess.call(["init", "5"])
 
-    if DEBUG:
-        from os.path import isfile
 
-        def win_info(user, display):
+    def win_info(user, display):
+        if argv.debug:
             template = ('0x01e00003 -1 0    {}  1024 24   rgsl-07 Top Expanded Edge Panel\n'
                         '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
             return template.format('-48' if isfile('/tmp/no_panel') else '0')
-
-    else:
-        def win_info(user, display):
+        else:
             return check_output("DISPLAY={} sudo -u {} wmctrl -lG".format(
                                 display, user), shell=True)
 
@@ -208,7 +205,7 @@ def heartbeat():
         traceback.print_exc()
 
 def getStatus():
-    if DEBUG and isfile('/tmp/oldstatus'):
+    if argv.debug and isfile('/tmp/oldstatus'):
         return "rgsender3"
 
     problems = [result for result in [func() for func in checks]
@@ -281,6 +278,11 @@ def stop():
     reactor.callFromThread(reactor.stop)
 
 def start():
+    global argv
+    parser = ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true')
+    argv = parser.parse_args()
+
     print("starting up")
     readConfigFile()
     global checks

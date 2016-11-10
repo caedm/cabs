@@ -17,4 +17,4 @@ RUN chmod +x /usr/bin/who
 #RUN /tmp/agent/install.sh && rm -r /tmp/agent
 
 # run
-CMD ["python", "-u", "/code/app/cabsagent.py"]
+CMD ["python", "-u", "/code/app/cabsagent.py", "--debug"]

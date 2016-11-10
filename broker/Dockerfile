@@ -21,4 +21,7 @@ RUN pip install -r /tmp/requirements.txt
 RUN sed -i 's/^bind-address/#bind-address/' /etc/mysql/my.cnf
 ENTRYPOINT ["/code/extra/entrypoint.sh"]
 WORKDIR /code/app
-CMD ["bash"]
+
+# cabsbroker will start automatically, but you can also stop and start it again
+# without exiting the container.
+CMD ["bash", "-c", "./cabsbroker.py --debug ; bash"]

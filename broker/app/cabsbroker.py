@@ -25,10 +25,8 @@ import socket
 import ssl
 import re
 import json
-
+from argparse import ArgumentParser
 from time import sleep
-
-DEBUG = True
 
 blacklist = set()
 logger = logging.getLogger()
@@ -217,7 +215,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         user = request[1]
         password = request[2]
         try:
-            self.groups = (self.user_groups(user, password) if not DEBUG else
+            self.groups = (self.user_groups(user, password) if not argv.debug else
                            ['main', 'secondary', 'other'])
         except ldap.INVALID_CREDENTIALS:
             self.send_error("Invalid credentials")
@@ -725,6 +723,11 @@ def start_ssl_cmd_server():
     reactor.listenSSL(int(settings.get("Command_Port")), factory, certificate.options(authority))
 
 if __name__ == "__main__":
+    global argv
+    parser = ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true')
+    argv = parser.parse_args()
+
     #Read the settings
     readConfigFile()
 

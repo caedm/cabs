@@ -11,8 +11,7 @@ from os.path import dirname, join, abspath
 
 import wx
 import json
-
-DEBUG = True
+from argparse import ArgumentParser
 
 if getattr(sys, 'frozen', False):
     __file__ = sys.executable
@@ -912,7 +911,8 @@ class MainWindow(wx.Frame):
     def runCommand(self, username, password, machine, port):
         if settings.get("RGS_Options") == 'True':
             #check if it is a valid file
-            if (not settings.get("RGS_Location") is None) and (settings.get("RGS_Location") != "None") and isfile(settings.get("RGS_Location")):
+            if argv.debug or (settings["RGS_Location"] not in (None, "None") and
+                              isfile(settings["RGS_Location"])):
                 if str(machine).endswith(self.tab6.domandserv.domain.GetValue().strip()):
                     address = str(machine)
                 else:
@@ -1018,7 +1018,12 @@ class NoConf(wx.Frame):
         wx.MessageBox('Could not find CABS_client.conf in:\n{0}'.format(filelocation), 'Error', wx.CANCEL | wx.ICON_ERROR)
         self.Destroy()
 
-def main():
+if __name__ == "__main__":
+    global argv
+    parser = ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true')
+    argv = parser.parse_args()
+
     global rgscommand
     rgscommand = None
 
@@ -1028,15 +1033,12 @@ def main():
         app.MainLoop()
     
         if rgscommand:
-            if DEBUG:
+            if argv.debug:
                  print rgscommand
-                 return
+                 sys.exit()
             p = subprocess.Popen(rgscommand)
             watchProcess(p.pid)
     else:
         app = wx.App(False)
         NoConf(None).Show()
         app.MainLoop()
-
-if __name__ == "__main__":
-        main()
