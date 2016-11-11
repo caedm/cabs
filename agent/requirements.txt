@@ -1,2 +1,0 @@
-Twisted==15.4.0
-service-identity==16.0.0

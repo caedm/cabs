@@ -1,0 +1,45 @@
+{% include "cabs_admin/header.html" %}
+
+<nav>
+    <ul class="pagination">
+        {% for page in page_list %}
+            <li><a {% if page.index == current_page %} id="selected" {% endif %} href="{% url 'cabs_admin:historyPage' %}?position={{page.pos}}&sort={{sort|urlencode}}&filter={{filter|urlencode}}">{{page.index}}</a></li>
+        {% endfor %} 
+    </ul>
+</nav>
+<form action="{% url 'cabs_admin:historyPage' %}" method="get" class="form-inline">
+    <div class="form-group">
+        <label for="filter">Search</label>
+        <input type="text" class="form-control" name="filter" title="keyword" {% if filter %} placeholder="{{filter}}" {% else %} placeholder="Search" {% endif %}>
+    </div>
+
+</form>
+
+<table class="table_list table table-hover table-condensed">
+    <tr class=""><th><a href="{% url 'cabs_admin:historyPage' %}?filter={{filter|urlencode}}&sort=level" style="color: #333333">Message Level</a></th><th>Message</th><th><a href="{% url 'cabs_admin:historyPage' %}?filter={{filter|urlencode}}&sort=" style="color: #333333">Time</a></th></tr>
+    <tr></tr>
+    {% for line in logger_list %}
+        {% if line.msg_type == "ERROR" %}
+            <tr class="danger">
+            <td><span class="fa fa-info-circle alert-danger " aria-hidden="true"></span> Level 1</td>
+        {% elif line.msg_type == "WARNING" %}
+            <tr class="danger">
+            <td><span class="fa fa-exclamation-triangle alert-danger" aria-hidden="true"></span> Level 2</td>
+        {% elif line.msg_type == "INFO" %}
+            <tr class="level">
+            <td><span class="fa fa-info-circle alert-info " aria-hidden="true"></span> Level 3</td>
+        {% elif line.msg_type == "DEBUG" %}
+            <tr class="warning">
+            <td><span class="fa fa-bug alert-warning" aria-hidden="true"></span> Level 4</td>
+        {% else %}
+            <tr>
+            <td>{{line.msg_type}}</td>
+        {% endif %}
+        <td>{{line.message | truncatechars:150 }}</td>
+        <td>{{line.timestamp | date:"m/d H:i:s"}}</td>
+    </tr>
+{% endfor %}
+</table>
+
+{% include "cabs_admin/footer.html" %}
+

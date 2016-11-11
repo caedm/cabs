@@ -1,0 +1,9 @@
+#!/bin/bash
+[Unit]
+Description="Connection Automation Brokerage System (CABS)"
+
+[Service]
+ExecStart=/opt/cabsbroker/cabsbroker.py
+
+[Install]
+WantedBy=multi-user.target

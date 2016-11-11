@@ -1,0 +1,17 @@
+{% include "cabs_admin/header_refresh.html" %}
+
+{% if permission_error %}
+    <div class="alert alert-danger" role="alert"> {{ permission_error}} </div>
+{% endif %}
+
+<center>
+<p>{{ permissions }}</p>
+
+{% load staticfiles %}
+{% for pool in pools %}
+    <a href="{% url 'cabs_admin:graphsPage' pool %}">
+    <img class="graph" src="{% static "graphs/" %}{{ pool }}/12h.png" alt="{{ pool }} over the last 12 hours" />
+    </a>
+{% endfor %}
+
+</center>

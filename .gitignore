@@ -1,1 +1,5 @@
 *.pem
+build
+venv
+*.pyc
+dist
