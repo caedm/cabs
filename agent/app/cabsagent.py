@@ -40,7 +40,7 @@ requestStop = False
 settings = { "Host_Addr":'broker',
              "Agent_Port":18182,
              "Command_Port":18185,
-             "Cert_Dir":"/usr/share/cabsagent/",
+             "Cert_Dir":"/etc/ssl/certs",
              "Broker_Cert":None,
              "Agent_Cert":None,
              "Agent_Priv_Key":None,
@@ -107,8 +107,8 @@ if os.name == "posix":
                         '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
             return template.format('-48' if isfile('/tmp/no_panel') else '0')
         else:
-            return check_output("DISPLAY={} sudo -u {} wmctrl -lG".format(
-                                display, user), shell=True)
+            return check_output("script -c 'DISPLAY={} sudo -u {} wmctrl -lG' /dev/null"
+                                "| grep -v Script".format(display, user), shell=True)
 
     # We can only check if there's a panel when someone is logged in. If the user logs out, we
     # want to remember that there wasn't a panel.
@@ -243,10 +243,7 @@ def readConfigFile():
         application_path = os.path.dirname(os.path.abspath(sys.executable))
     else:
         application_path = os.path.dirname(os.path.abspath(__file__))
-    for filelocation in ["/etc/cabsagent.conf", "/usr/share/cabsagent/cabsagent.conf",
-            os.path.join(application_path, 'cabsagent.conf')]:
-        if os.path.isfile(filelocation):
-            break
+    filelocation = os.path.join(application_path, 'cabsagent.conf')
     with open(filelocation, 'r') as f:
         for line in f:
             line = line.strip()

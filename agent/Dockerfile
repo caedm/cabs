@@ -12,9 +12,5 @@ COPY extra/who.sh /usr/bin/who
 RUN touch /tmp/users.txt
 RUN chmod +x /usr/bin/who
 
-# install cabs agent
-#COPY ./app/ /tmp/agent
-#RUN /tmp/agent/install.sh && rm -r /tmp/agent
-
 # run
 CMD ["python", "-u", "/code/app/cabsagent.py", "--debug"]

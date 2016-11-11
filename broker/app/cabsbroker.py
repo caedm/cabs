@@ -27,6 +27,7 @@ import re
 import json
 from argparse import ArgumentParser
 from time import sleep
+from os.path import dirname, realpath, join
 
 blacklist = set()
 logger = logging.getLogger()
@@ -606,7 +607,7 @@ def getAuthServer():
 ## Reads the configuration file
 def readConfigFile():
     #open the .conf file and return the variables as a dictionary
-    filelocation = "cabsbroker.conf"
+    filelocation = join(dirname(realpath(__file__)), "cabsbroker.conf")
     if not os.path.isfile(filelocation):
         return
     with open(filelocation, 'r') as f:

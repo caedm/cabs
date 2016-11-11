@@ -17,19 +17,9 @@ install -vm 644 apache_settings.conf /etc/apache2/sites-enabled/000-default.conf
 
 mkdir -p /opt/cabsgraph/static
 
-#cd $DIR
-#./manage.py makemigrations
-#./manage.py migrate
-#echo yes | $echo ./manage.py collectstatic
-#cd -
-
 a2enmod wsgi
-##enable https only
-#$echo a2enmod rewrite
-#$echo a2enmod ssl
-#
-#$echo service apache2 restart
 
 echo
 echo Installation complete.
-echo "Run with python $DIR/manage.py runserver"
+echo "Run with \`python $DIR/manage.py runserver\`"
+echo "You may need to run \`python $DIR/manage.py migrate\` first."

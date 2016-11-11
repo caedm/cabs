@@ -13,10 +13,6 @@ RUN apt-get -y update && apt-get -y install mysql-server \
 COPY app/requirements.txt /tmp
 RUN pip install -r /tmp/requirements.txt
 
-# install cabs
-#COPY ./app/ /tmp/broker
-#RUN /tmp/broker/install.sh && rm -r /tmp/broker
-
 # run
 RUN sed -i 's/^bind-address/#bind-address/' /etc/mysql/my.cnf
 ENTRYPOINT ["/code/extra/entrypoint.sh"]
