@@ -239,26 +239,22 @@ def start_ssl_cmd_server():
     reactor.listenSSL(int(settings.get("Command_Port")), factory, certificate.options(authority))
 
 def readConfigFile():
-    if getattr(sys, 'frozen', False):
-        application_path = os.path.dirname(os.path.abspath(sys.executable))
-    else:
-        application_path = os.path.dirname(os.path.abspath(__file__))
-    filelocation = os.path.join(application_path, 'cabsagent.conf')
-    with open(filelocation, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if line.startswith('#') or not line:
-                continue
-            try:
-                key, val = [word.strip() for word in line.split(':', 1)]
-            except ValueError:
-                print "Warning: unrecognized setting: " + line
-                continue
-            if key not in settings:
-                print "Warning: unrecognized setting: " + line
-                continue
-            settings[key] = val
-        f.close()
+    if isfile(argv.config):
+        with open(argv.config, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('#') or not line:
+                    continue
+                try:
+                    key, val = [word.strip() for word in line.split(':', 1)]
+                except ValueError:
+                    print "Warning: unrecognized setting: " + line
+                    continue
+                if key not in settings:
+                    print "Warning: unrecognized setting: " + line
+                    continue
+                settings[key] = val
+            f.close()
 
     for key in ("Broker_Cert", "Agent_Cert"):
         if settings[key] is not None and not os.path.isabs(settings[key]):
@@ -275,9 +271,13 @@ def stop():
     reactor.callFromThread(reactor.stop)
 
 def start():
+    application_path = os.path.dirname(os.path.abspath(
+                       sys.executable if getattr(sys, 'frozen', False) else __file__))
+    default_config = os.path.join(application_path, 'cabsagent.conf')
     global argv
     parser = ArgumentParser()
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-f', '--config', default=default_config)
     argv = parser.parse_args()
 
     print("starting up")

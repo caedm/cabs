@@ -13,4 +13,4 @@ RUN touch /tmp/users.txt
 RUN chmod +x /usr/bin/who
 
 # run
-CMD ["python", "-u", "/code/app/cabsagent.py", "--debug"]
+CMD ["python", "-u", "/code/app/cabsagent.py", "--debug", "--config", "/etc/cabsagent.conf"]
