@@ -222,6 +222,9 @@ def request(user=None, pool=None, **kwargs):
     return machine
 
 def start(hostname=None, user=None):
+    if 'cabsagent' not in check_output(['docker', 'images']):
+        check_call('docker build -t cabsagent ./agent'.split())
+
     if not running(hostname):
         if exists(hostname):
             check_output(['docker', 'start', hostname])
