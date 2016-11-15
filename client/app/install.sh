@@ -5,6 +5,7 @@ if [ $UID -ne 0 ]; then
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")"/src
 files="CABS_client.conf cert.pem Header.png Icon.ico Icon.png version.txt"
+dir=/opt/RGSConnect
 
 if type -P apt-get; then
     if dpkg -l rgsconnect >/dev/null 2>&1 ; then
@@ -28,10 +29,11 @@ RGSConnect is only supported on Ubuntu and Red Hat." > /dev/stderr
 fi
 
 set -e
-mkdir -vp /opt/rgsconnect
-cp -vr $files /opt/rgsconnect/
-cp -v $bin /opt/rgsconnect/RGSConnect
-ln -vfs /opt/rgsconnect/RGSConnect /usr/local/bin/
+mkdir -vp $dir
+cp -vr $files $dir/
+cp -v $bin $dir/RGSConnect
+mkdir -p /usr/local/share/applications/
+cp rgsconnect.desktop /usr/local/share/applications
 
 echo
 echo Installation complete.

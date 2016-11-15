@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Name=RGSConnect
+Comment=RGS Connect Client
+Exec=/opt/RGSConnect/RGSConnect
+Icon=/opt/RGSConnect/Icon.png
+Terminal=false
+Categories=Network;CaedmNew;
