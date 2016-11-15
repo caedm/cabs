@@ -7,11 +7,14 @@ DIST=$(GEN)/dist
 OPTS=--onefile --clean --distpath $(DIST) --workpath $(GEN) \
      --specpath $(GEN) --name RGSConnect-$(DISTRO)
 
+RPM=app/src/rgreceiver_linux_64-$(VERSION).x86_64.rpm
+DEB=app/src/rgreceiver-linux-64_$(VERSION)_amd64.deb
+
 all: linux windows
 
 linux: ubuntu rhel archive
 
-archive:
+archive: $(RPM) $(DEB)
 	$(eval OS := linux)
 	mkdir -p $(DIR)
 	cp -rL app/* $(DIR)
@@ -28,6 +31,12 @@ ubuntu:
 	docker run --rm -v $(CURDIR):/tmp/code -w /tmp/code \
 		--user $(shell id -u):$(shell id -g) clientubuntu \
 	    pyinstaller $(OPTS) app/src/CABS_client.py
+
+$(DEB): $(RPM)
+	docker build -t clientubuntu -f ./extra/Dockerfile-ubuntu ./extra
+	docker run --rm -v $(CURDIR)/app/src/:/tmp/code -w /tmp/code \
+		--user $(shell id -u):$(shell id -g) clientubuntu \
+	    fakeroot alien -k --scripts $(shell basename $(RPM))
 
 rhel:
 	$(eval DISTRO := rhel)
@@ -48,3 +57,11 @@ windows: $(DIST)/RGSConnect-windows.exe
 
 clean:
 	rm -rf build/*
+
+test:
+	$(eval DISTRO := ubuntu)
+	mkdir -p $(GEN)
+	docker build -t clientubuntu -f ./extra/Dockerfile-ubuntu ./extra
+	docker run --rm -it -v $(CURDIR):/tmp/code -w /tmp/code \
+		--user $(shell id -u):$(shell id -g) clientubuntu \
+		bash

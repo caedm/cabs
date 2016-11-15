@@ -3,4 +3,5 @@ build
 venv
 *.pyc
 *.rpm
+*.deb
 dist
