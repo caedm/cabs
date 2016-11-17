@@ -3,7 +3,7 @@ from __future__ import print_function
 from argparse import ArgumentParser
 import code
 import socket
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, STDOUT
 from time import time, sleep
 import re
 import json
@@ -63,10 +63,15 @@ def test_nopanel():
     assert dump()['main1']['status'] == 'no_panel'
     print("main1 status is 'no_panel'")
 
+    ts = timestamp('main1')
+
     logoff('main1')
     wait_heartbeat('main1')
     assert dump()['main1']['status'] == 'no_panel'
     print("main1 status is 'no_panel'")
+
+    assert "rebooting" in logs('main1', ts)
+    print("main1 rebooted")
 
     logon('main2', 'foo')
     logon('main3', 'bar')
@@ -105,6 +110,17 @@ test_funcs = [test_handle_json, test_nopanel, test_oldstatus,
 ###############################################################################
 # UTILS
 ###############################################################################
+
+def logs(hostname, since=None):
+    return check_output(['docker', 'logs'] +
+            ([] if not since else ['--since', since]) +
+            [hostname], stderr=STDOUT)
+
+
+def timestamp(hostname):
+    last_line = (check_output(['docker', 'logs', '-t', hostname], stderr=STDOUT)
+                 .strip().split('\n')[-1])
+    return last_line if isinstance(last_line, basestring) else last_line[0]
 
 def setup():
     clean_configs()
@@ -318,61 +334,62 @@ def restart(hostname=None, hard=None):
         threads.append(t)
     [t.join() for t in threads]
 
-parser = ArgumentParser()
-sub = parser.add_subparsers()
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    sub = parser.add_subparsers()
 
-p = sub.add_parser("request", help="request a machine")
-p.add_argument("user")
-p.add_argument("pool")
-p.set_defaults(func=request)
+    p = sub.add_parser("request", help="request a machine")
+    p.add_argument("user")
+    p.add_argument("pool")
+    p.set_defaults(func=request)
 
-p = sub.add_parser("start", help="start a machine")
-p.add_argument("hostname")
-p.add_argument("user", nargs='?')
-p.set_defaults(func=start)
+    p = sub.add_parser("start", help="start a machine")
+    p.add_argument("hostname")
+    p.add_argument("user", nargs='?')
+    p.set_defaults(func=start)
 
-p = sub.add_parser("stop", help="stop a machine")
-p.add_argument("hostname", nargs='?')
-p.set_defaults(func=stop)
+    p = sub.add_parser("stop", help="stop a machine")
+    p.add_argument("hostname", nargs='?')
+    p.set_defaults(func=stop)
 
-p = sub.add_parser("logon", help="log a user on to a machine")
-p.add_argument("hostname")
-p.add_argument("user")
-p.set_defaults(func=logon)
+    p = sub.add_parser("logon", help="log a user on to a machine")
+    p.add_argument("hostname")
+    p.add_argument("user")
+    p.set_defaults(func=logon)
 
-p = sub.add_parser("logoff", help="log a user off a machine")
-p.add_argument("hostname")
-p.set_defaults(func=logoff)
+    p = sub.add_parser("logoff", help="log a user off a machine")
+    p.add_argument("hostname")
+    p.set_defaults(func=logoff)
 
-p = sub.add_parser("query", help="print current machine info")
-p.set_defaults(func=query)
+    p = sub.add_parser("query", help="print current machine info")
+    p.set_defaults(func=query)
 
-p = sub.add_parser("dump", help="print current machine info")
-p.set_defaults(func=dump)
+    p = sub.add_parser("dump", help="print current machine info")
+    p.set_defaults(func=dump)
 
-p = sub.add_parser("test", help="test the broker")
-p.set_defaults(func=test)
+    p = sub.add_parser("test", help="test the broker")
+    p.set_defaults(func=test)
 
-p = sub.add_parser("build", help="build the agent docker image")
-p.set_defaults(func=build)
+    p = sub.add_parser("build", help="build the agent docker image")
+    p.set_defaults(func=build)
 
-p = sub.add_parser("restart", help="restart the cabs agent on a machine")
-p.add_argument("hostname", nargs='?')
-p.add_argument("--hard", "-f", action='store_true', help="remove the container")
-p.set_defaults(func=restart)
+    p = sub.add_parser("restart", help="restart the cabs agent on a machine")
+    p.add_argument("hostname", nargs='?')
+    p.add_argument("--hard", "-f", action='store_true', help="remove the container")
+    p.set_defaults(func=restart)
 
-p = sub.add_parser("state", help="set the state of an agent")
-p.add_argument("hostname")
-p.add_argument("action", choices=['set', 'unset'])
-p.add_argument("state", choices=states)
-p.set_defaults(func=state)
+    p = sub.add_parser("state", help="set the state of an agent")
+    p.add_argument("hostname")
+    p.add_argument("action", choices=['set', 'unset'])
+    p.add_argument("state", choices=states)
+    p.set_defaults(func=state)
 
-args = vars(parser.parse_args())
-func = args['func']
-args.pop('func')
-response = func(**args)
-if response:
-    if any(isinstance(response, t) for t in (dict, list)):
-        print(json.dumps(response, indent=2))
-    else:
-        print(response)
+    args = vars(parser.parse_args())
+    func = args['func']
+    args.pop('func')
+    response = func(**args)
+    if response:
+        if any(isinstance(response, t) for t in (dict, list)):
+            print(json.dumps(response, indent=2))
+        else:
+            print(response)

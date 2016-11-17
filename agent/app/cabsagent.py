@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python2 -u
 #This is the test Agent for CABS for linux
 
 # Workaround until a bugfix in pyinstaller gets released on pypi.
@@ -93,6 +93,7 @@ if os.name == "posix":
                 pass
 
     def reboot():
+        print("rebooting")
         subprocess.call(["shutdown", "-r", "now"])
 
     def restart():
@@ -124,6 +125,8 @@ if os.name == "posix":
             info = win_info(user, display).split('\n')
             y_coords = [line.split()[3] for line in info if "Top Expanded Edge Panel" in line]
             no_panel = any(int(coord) < 0 for coord in y_coords)
+        elif no_panel and not user_list():
+            reboot()
 
         return "no_panel" if no_panel else "Okay"
 
@@ -195,7 +198,6 @@ def heartbeat():
         if settings.get("Broker_Cert") is None:
             s_wrapped = s 
         else:
-            print "using broker cert: " + settings["Broker_Cert"]
             s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=settings["Broker_Cert"], \
                         ssl_version=ssl.PROTOCOL_SSLv23)
         
