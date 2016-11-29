@@ -3,6 +3,8 @@
 
 # Workaround until a bugfix in pyinstaller gets released on pypi.
 # See https://github.com/pyinstaller/pyinstaller/commit/f788dec36b8d55f4518881be9f4188ad865306ec
+import ctypes.util
+
 import socket, ssl
 import sys
 import os
@@ -37,10 +39,13 @@ STATUS_PS_OK = 3
 #global heartbeat_pid
 requestStop = False
 
+application_path = os.path.dirname(os.path.abspath(
+                   sys.executable if getattr(sys, 'frozen', False) else __file__))
+default_config = os.path.join(application_path, 'cabsagent.conf')
 settings = { "Host_Addr":'broker',
              "Agent_Port":18182,
              "Command_Port":18185,
-             "Cert_Dir":"/etc/ssl/certs",
+             "Cert_Dir":application_path,
              "Broker_Cert":None,
              "Agent_Cert":None,
              "Agent_Priv_Key":None,
@@ -48,6 +53,8 @@ settings = { "Host_Addr":'broker',
              "Process_Listen":None,
              "Hostname":None }
 checks = []
+
+DEBUG = False
 
 def ps_check():
     # get the status of a process that matches settings.get("Process_Listen")
@@ -103,7 +110,7 @@ if os.name == "posix":
 
 
     def win_info(user, display):
-        if argv.debug:
+        if DEBUG:
             template = ('0x01e00003 -1 0    {}  1024 24   rgsl-07 Top Expanded Edge Panel\n'
                         '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
             return template.format('-48' if isfile('/tmp/no_panel') else '0')
@@ -134,9 +141,10 @@ if os.name == "posix":
 
 else:
     assert os.name == "nt"
-    #import win32service
-    #import win32event
-    #import servicemanager
+
+    # Fix for another pyinstaller problem.
+    import _cffi_backend
+
     import win32api
     import win32serviceutil
     from getpass import getuser
@@ -154,14 +162,6 @@ else:
         if m is None:
             return None
         return  psutil.Process(int(m.group(0)))
-
-    #def heartbeat_loop():
-    #    if len(sys.argv) == 1:
-    #        servicemanager.Initialize()
-    #        servicemanager.PrepareToHostSingle(AgentService)
-    #        servicemanager.StartServiceCtrlDispatcher()
-    #    else:
-    #        win32serviceutil.HandleCommandLine(AgentService)
 
     def restart():
         print "restarting"
@@ -183,9 +183,7 @@ def heartbeat_loop():
     s = scheduler(time, sleep)
     #read config for time interval, in seconds
     print "Starting. Pulsing every {0} seconds.".format(settings.get("Interval"))
-    while True:
-        if requestStop:
-            break
+    while not requestStop:
         s.enter(int(settings.get("Interval")), 1, heartbeat, ())
         s.run()
 
@@ -207,7 +205,7 @@ def heartbeat():
         traceback.print_exc()
 
 def getStatus():
-    if argv.debug and isfile('/tmp/oldstatus'):
+    if DEBUG and isfile('/tmp/oldstatus'):
         return "rgsender3"
 
     problems = [result for result in [func() for func in checks]
@@ -240,9 +238,9 @@ def start_ssl_cmd_server():
     factory = Factory.forProtocol(CommandHandler)
     reactor.listenSSL(int(settings.get("Command_Port")), factory, certificate.options(authority))
 
-def readConfigFile():
-    if isfile(argv.config):
-        with open(argv.config, 'r') as f:
+def readConfigFile(config):
+    if isfile(config):
+        with open(config, 'r') as f:
             for line in f:
                 line = line.strip()
                 if line.startswith('#') or not line:
@@ -268,22 +266,9 @@ def readConfigFile():
         #If we want a fqdn we can use socket.gethostbyaddr(socket.gethostname())[0]
         settings["Hostname"] = socket.gethostname()
 
-def stop():
-    requestStop = True
-    reactor.callFromThread(reactor.stop)
-
-def start():
-    application_path = os.path.dirname(os.path.abspath(
-                       sys.executable if getattr(sys, 'frozen', False) else __file__))
-    default_config = os.path.join(application_path, 'cabsagent.conf')
-    global argv
-    parser = ArgumentParser()
-    parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('-f', '--config', default=default_config)
-    argv = parser.parse_args()
-
+def start(config=default_config):
     print("starting up")
-    readConfigFile()
+    readConfigFile(config)
     global checks
     if settings['Process_Listen'] and psutil:
         checks.append(ps_check)
@@ -300,4 +285,9 @@ def start():
     reactor.run()
 
 if __name__ == "__main__":
-    start()
+    parser = ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-f', '--config', default=default_config)
+    argv = parser.parse_args()
+    DEBUG = argv.debug
+    start(argv.config)

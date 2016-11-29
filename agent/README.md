@@ -12,16 +12,32 @@ must be added to the Broker's database manually. See cabs-broker for more
 information.
 
 ### Linux
-Copy the `app/` directory to the machine and run
-`app/install.sh`. This will install the agent to `/opt/cabsagent/`. After
-installation, edit `/opt/cabsagent/cabsagent.conf` as needed. Start the service with
-`systemctl start cabsagent`. Set it to start on boot with `systemctl enable cabsagent`.
+Copy the `app/` directory to the machine and run `app/install.sh`. This will install the agent
+to `/opt/cabsagent/`. After installation, edit `/opt/cabsagent/cabsagent.conf` as needed. Start
+the service with `systemctl start cabsagent`. Set it to start on boot with `systemctl enable
+cabsagent`.
 
 ### Windows
-The most recent version of the Agent is incomplete for Windows.* A previous
-version is in the windows folder. Run `windows/Install_CABS_Agent.exe` to
-install.
+#### Building
+First, you have to create cabsagentsvc.exe with pyinstaller. In a Windows environment,
+ - install ActiveState python. This will ensure the win32 python modules are installed
+   correctly. If the modules aren't installed correctly, later on the Windows service will give
+   an error about the service not starting in a timely fashion.
+ - Install dependency modules: `pip -r app/requirements.txt`.
+ - Install pyinstaller: `pip install pyinstaller`
+ - Create the executable: `pyinstaller --onefile app/cabsagentsvc.py`
+ - Move the executable from `dist/cabsagentsvc.exe` to `app/cabsagentsvc.exe`
 
-*The script itself is working, but it isn't installable as a service yet.
+After that, you can run `make` from Linux to create a zipfile with the installation script.
+Make will include ssl certificates that are not checked into git, so make sure those are in the
+app directory. You may want to edit `app/cabsagent.conf` before running `make` so that the
+zipfile will contain the configuration you want.
 
-See the README and wiki in the cabs-broker repo for more information about the CABS system.
+#### Installing
+Once the zipfile is created (it will be at `build/cabsagent-windows-<version>.zip`), copy it to
+the target machine, unzip and run `install.exe`. After installing, this will start the agent
+immediately and set it to start on boot.
+
+If something doesn't work, you can test it out by
+running `cabsagentsvc.exe debug` from a command prompt in the `C:\Program Files\CABS\Agent`
+directory. You may have to run `cabsagentsvc.exe stop` first if the service is already running.
