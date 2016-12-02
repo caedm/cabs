@@ -39,13 +39,11 @@ def test_machine_timeout():
     print('main1 status is Okay')
 
 def test_pscheck():
-    #write_config('main1', 'Process_Listen', 'foobar')
     write_config('main1', 'Check_Scripts', 'pscheck.py,foobar')
     wait_heartbeat('main1')
     assert dump()['main1']['status'] == 'foobar not found'
     print('main1 status is "foobar not found"')
 
-    #write_config('main1', 'Process_Listen', 'python')
     write_config('main1', 'Check_Scripts', 'pscheck.py,python')
     wait_heartbeat('main1')
     assert dump()['main1']['status'] == 'Okay'
@@ -59,6 +57,7 @@ def test_oldstatus():
     print('main1 status is ' + status)
 
 def test_nopanel():
+    write_config('main1', 'Check_Scripts', 'nopanel.py,--debug')
     state('main1', 'set', 'no_panel')
     logon('main1', 'harry')
     wait_heartbeat('main1')
@@ -72,7 +71,7 @@ def test_nopanel():
     assert dump()['main1']['status'] == 'no_panel'
     print("main1 status is 'no_panel'")
 
-    assert "rebooting" in logs('main1', ts)
+    assert "Failed to talk to init daemon." in logs('main1', ts)
     print("main1 rebooted")
 
     logon('main2', 'foo')
@@ -97,6 +96,8 @@ def test_restoring():
     second = request('fred', 'main')
     assert first == second
 
+    write_config(first, 'Check_Scripts', 'nopanel.py,--debug')
+    logon(first, 'fred')  # See note in write_config
     state(first, 'set', 'no_panel')
     wait_heartbeat(first)
     second = request('fred', 'main')
@@ -118,9 +119,9 @@ def test_external_checks():
     assert status != 'Okay'
     print("main1 status is '{}'".format(status))
 
-test_funcs = [test_pscheck, test_external_checks]
-#test_funcs = [test_handle_json, test_nopanel, test_oldstatus,
-#              test_machine_timeout, test_pscheck, test_restoring]
+test_funcs = [test_handle_json, test_external_checks, test_nopanel,
+              test_oldstatus, test_machine_timeout, test_pscheck,
+              test_restoring]
 
 ###############################################################################
 # UTILS
@@ -232,6 +233,8 @@ def test():
     setup()
 
 def write_config(hostname=None, key=None, value=None):
+    # NOTE: because we have to restart the machine, any logged in users or set
+    # states will be cleared.
     global dirty_configs
     global verbose
 

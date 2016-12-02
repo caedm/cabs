@@ -24,19 +24,12 @@ from twisted.protocols.basic import LineOnlyReceiver
 from argparse import ArgumentParser
 from os.path import isfile, isabs, basename, join
 
-#try:
-#    import psutil
-#except:
-#    print "warning: couldn't import psutil. Process monitoring not available."
-#    psutil = None
-
 ERR_GET_STATUS = -1
 STATUS_PS_NOT_FOUND = 0
 STATUS_PS_NOT_RUNNING = 1
 STATUS_PS_NOT_CONNECTED = 2
 STATUS_PS_OK = 3
 
-#global heartbeat_pid
 requestStop = False
 
 application_path = os.path.dirname(os.path.abspath(
@@ -54,29 +47,7 @@ settings = { "Host_Addr":'broker',
              "Hostname":None,
              "Checks_Dir":join(application_path, 'checks'),
              "Check_Scripts": ""}
-checks = []
-
 DEBUG = False
-
-#def ps_check():
-#    # get the status of a process that matches settings.get("Process_Listen")
-#    # then check to make sure it has at least one listening conection on windows, you can't
-#    # search processes by yourself, so Popen "tasklist" to try to find the pid for the name
-#    # then use psutil to view the connections associated with that
-#    if not psutil:
-#        return "Okay"
-#
-#    ps_name = settings.get("Process_Listen")
-#    process = find_process()
-#    if process is None:
-#        return ps_name + " not found"
-#    if not process.is_running():
-#        return ps_name + " not running"
-#    for conn in process.connections():
-#        if conn.status in [psutil.CONN_ESTABLISHED, psutil.CONN_SYN_SENT,
-#                           psutil.CONN_SYN_RECV, psutil.CONN_LISTEN]:
-#            return "Okay"
-#    return ps_name + " not connected"
 
 if os.name == "posix":
     def user_list():
@@ -91,16 +62,6 @@ if os.name == "posix":
                 pass
         return userlist
 
-    #def find_process():
-    #    #assume a platform where we can just search with psutil
-    #    for ps in psutil.process_iter():
-    #        try:
-    #            if ps.name() == settings.get("Process_Listen"):
-    #                return ps
-    #        except:
-    #            #we probably dont have permissions to access the ps.name()
-    #            pass
-
     def reboot():
         print("rebooting")
         subprocess.call(["shutdown", "-r", "now"])
@@ -109,38 +70,6 @@ if os.name == "posix":
         subprocess.call(["init", "2"])
         Timer(10, subprocess.call, (["init", "5"],)).start()
         #subprocess.call(["init", "5"])
-
-
-    def win_info(user, display):
-        if DEBUG:
-            template = ('0x01e00003 -1 0    {}  1024 24   rgsl-07 Top Expanded Edge Panel\n'
-                        '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
-            return template.format('-48' if isfile('/tmp/no_panel') else '0')
-        else:
-            return check_output("script -c 'DISPLAY={} sudo -u {} wmctrl -lG' /dev/null"
-                                "| grep -v Script".format(display, user), shell=True)
-
-    # We can only check if there's a panel when someone is logged in. If the user logs out, we
-    # want to remember that there wasn't a panel.
-    no_panel = False
-    def panel_check():
-        global no_panel
-        print('running panel check')
-        graphical_users = [line.split() for line in check_output("who").split('\n')
-                                        if " :0" in line]
-        if graphical_users:
-            user = graphical_users[0][0]
-            display = graphical_users[0][1]
-            info = win_info(user, display).split('\n')
-            y_coords = [line.split()[3] for line in info if "Top Expanded Edge Panel" in line]
-            no_panel = any(int(coord) < 0 for coord in y_coords)
-        elif no_panel and not user_list():
-            reboot()
-
-        return "no_panel" if no_panel else "Okay"
-
-    checks.append(panel_check)
-
 else:
     assert os.name == "nt"
 
@@ -153,17 +82,6 @@ else:
 
     def user_list():
         return [getuser()]
-
-    #def find_process():
-    #    p = psutil.Popen("tasklist", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-    #                     stderr=subprocess.PIPE)
-    #    out, err = p.communicate()
-    #    l_start = out.find(settings.get("Process_Listen"))
-    #    l_end = out.find('\n', l_start)
-    #    m = re.search(r"\d+", out[l_start: l_end])
-    #    if m is None:
-    #        return None
-    #    return  psutil.Process(int(m.group(0)))
 
     def restart():
         print "restarting"
@@ -222,8 +140,6 @@ def getStatus():
     problems = [result for result in [run_check(script).strip()
                                       for script in settings["Check_Scripts"]]
                        if result != "Okay"]
-    #problems = [result for result in [func() for func in checks]
-    #                   if result != "Okay"]
     return ",".join(problems) if problems else "Okay"
 
 class CommandHandler(LineOnlyReceiver):
