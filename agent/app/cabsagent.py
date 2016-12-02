@@ -9,7 +9,7 @@ import socket, ssl
 import sys
 import os
 import subprocess
-from subprocess import check_output, check_call
+from subprocess import check_output, check_call, CalledProcessError
 import re
 import signal
 import traceback
@@ -22,13 +22,13 @@ from twisted.internet.ssl import Certificate, PrivateCertificate
 from twisted.internet import reactor, endpoints
 from twisted.protocols.basic import LineOnlyReceiver
 from argparse import ArgumentParser
-from os.path import isfile
+from os.path import isfile, isabs, basename, join
 
-try:
-    import psutil
-except:
-    print "warning: couldn't import psutil. Process monitoring not available."
-    psutil = None
+#try:
+#    import psutil
+#except:
+#    print "warning: couldn't import psutil. Process monitoring not available."
+#    psutil = None
 
 ERR_GET_STATUS = -1
 STATUS_PS_NOT_FOUND = 0
@@ -51,30 +51,32 @@ settings = { "Host_Addr":'broker',
              "Agent_Priv_Key":None,
              "Interval":1,
              "Process_Listen":None,
-             "Hostname":None }
+             "Hostname":None,
+             "Checks_Dir":join(application_path, 'checks'),
+             "Check_Scripts": ""}
 checks = []
 
 DEBUG = False
 
-def ps_check():
-    # get the status of a process that matches settings.get("Process_Listen")
-    # then check to make sure it has at least one listening conection on windows, you can't
-    # search processes by yourself, so Popen "tasklist" to try to find the pid for the name
-    # then use psutil to view the connections associated with that
-    if not psutil:
-        return "Okay"
-
-    ps_name = settings.get("Process_Listen")
-    process = find_process()
-    if process is None:
-        return ps_name + " not found"
-    if not process.is_running():
-        return ps_name + " not running"
-    for conn in process.connections():
-        if conn.status in [psutil.CONN_ESTABLISHED, psutil.CONN_SYN_SENT,
-                           psutil.CONN_SYN_RECV, psutil.CONN_LISTEN]:
-            return "Okay"
-    return ps_name + " not connected"
+#def ps_check():
+#    # get the status of a process that matches settings.get("Process_Listen")
+#    # then check to make sure it has at least one listening conection on windows, you can't
+#    # search processes by yourself, so Popen "tasklist" to try to find the pid for the name
+#    # then use psutil to view the connections associated with that
+#    if not psutil:
+#        return "Okay"
+#
+#    ps_name = settings.get("Process_Listen")
+#    process = find_process()
+#    if process is None:
+#        return ps_name + " not found"
+#    if not process.is_running():
+#        return ps_name + " not running"
+#    for conn in process.connections():
+#        if conn.status in [psutil.CONN_ESTABLISHED, psutil.CONN_SYN_SENT,
+#                           psutil.CONN_SYN_RECV, psutil.CONN_LISTEN]:
+#            return "Okay"
+#    return ps_name + " not connected"
 
 if os.name == "posix":
     def user_list():
@@ -89,15 +91,15 @@ if os.name == "posix":
                 pass
         return userlist
 
-    def find_process():
-        #assume a platform where we can just search with psutil
-        for ps in psutil.process_iter():
-            try:
-                if ps.name() == settings.get("Process_Listen"):
-                    return ps
-            except:
-                #we probably dont have permissions to access the ps.name()
-                pass
+    #def find_process():
+    #    #assume a platform where we can just search with psutil
+    #    for ps in psutil.process_iter():
+    #        try:
+    #            if ps.name() == settings.get("Process_Listen"):
+    #                return ps
+    #        except:
+    #            #we probably dont have permissions to access the ps.name()
+    #            pass
 
     def reboot():
         print("rebooting")
@@ -152,16 +154,16 @@ else:
     def user_list():
         return [getuser()]
 
-    def find_process():
-        p = psutil.Popen("tasklist", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-        out, err = p.communicate()
-        l_start = out.find(settings.get("Process_Listen"))
-        l_end = out.find('\n', l_start)
-        m = re.search(r"\d+", out[l_start: l_end])
-        if m is None:
-            return None
-        return  psutil.Process(int(m.group(0)))
+    #def find_process():
+    #    p = psutil.Popen("tasklist", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+    #                     stderr=subprocess.PIPE)
+    #    out, err = p.communicate()
+    #    l_start = out.find(settings.get("Process_Listen"))
+    #    l_end = out.find('\n', l_start)
+    #    m = re.search(r"\d+", out[l_start: l_end])
+    #    if m is None:
+    #        return None
+    #    return  psutil.Process(int(m.group(0)))
 
     def restart():
         print "restarting"
@@ -204,12 +206,24 @@ def heartbeat():
     except:
         traceback.print_exc()
 
+def run_check(script):
+    scriptfile = join(settings["Checks_Dir"], script[0])
+    args = script[1:]
+    try:
+        return check_output([scriptfile] + args)
+    except CalledProcessError as e:
+        print "Couldn't run check {}: {}".format(basename(scriptfile), e)
+        return "Okay"
+
 def getStatus():
     if DEBUG and isfile('/tmp/oldstatus'):
         return "rgsender3"
 
-    problems = [result for result in [func() for func in checks]
+    problems = [result for result in [run_check(script).strip()
+                                      for script in settings["Check_Scripts"]]
                        if result != "Okay"]
+    #problems = [result for result in [func() for func in checks]
+    #                   if result != "Okay"]
     return ",".join(problems) if problems else "Okay"
 
 class CommandHandler(LineOnlyReceiver):
@@ -265,6 +279,10 @@ def readConfigFile(config):
     if settings["Hostname"] is None:
         #If we want a fqdn we can use socket.gethostbyaddr(socket.gethostname())[0]
         settings["Hostname"] = socket.gethostname()
+    
+    if not isabs(settings["Checks_Dir"]):
+        settings["Checks_Dir"] = join(application_path, settings["Checks_Dir"])
+    settings["Check_Scripts"] = [line.split(',') for line in settings["Check_Scripts"].split()]
 
 def start(config=default_config):
     print("starting up")

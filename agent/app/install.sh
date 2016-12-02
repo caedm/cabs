@@ -17,6 +17,8 @@ if ! [ -f $DIR/cabsagent.conf ]; then
 else
     echo $DIR/cabsroker.conf already exists, skipping...
 fi
+mkdir -p $DIR/checks
+cp checks/* $DIR/checks
 
 echo
 echo Installation complete.

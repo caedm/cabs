@@ -39,12 +39,14 @@ def test_machine_timeout():
     print('main1 status is Okay')
 
 def test_pscheck():
-    write_config('main1', 'Process_Listen', 'foobar')
+    #write_config('main1', 'Process_Listen', 'foobar')
+    write_config('main1', 'Check_Scripts', 'pscheck.py,foobar')
     wait_heartbeat('main1')
     assert dump()['main1']['status'] == 'foobar not found'
     print('main1 status is "foobar not found"')
 
-    write_config('main1', 'Process_Listen', 'python')
+    #write_config('main1', 'Process_Listen', 'python')
+    write_config('main1', 'Check_Scripts', 'pscheck.py,python')
     wait_heartbeat('main1')
     assert dump()['main1']['status'] == 'Okay'
     print('main1 status is "Okay"')
@@ -104,8 +106,21 @@ def test_handle_json():
     m = request('fred', 'main', json=True)
     assert m.startswith('main')
 
-test_funcs = [test_handle_json, test_nopanel, test_oldstatus,
-              test_machine_timeout, test_pscheck, test_restoring]
+def test_external_checks():
+    write_config("main1", "Check_Scripts", "example.py")
+    wait_heartbeat("main1")
+    assert dump()['main1']['status'] == 'Okay'
+    print("main1 status is 'Okay'")
+
+    write_config("main1", "Check_Scripts", "example.py bad.sh")
+    wait_heartbeat("main1")
+    status = dump()['main1']['status'] 
+    assert status != 'Okay'
+    print("main1 status is '{}'".format(status))
+
+test_funcs = [test_pscheck, test_external_checks]
+#test_funcs = [test_handle_json, test_nopanel, test_oldstatus,
+#              test_machine_timeout, test_pscheck, test_restoring]
 
 ###############################################################################
 # UTILS
@@ -135,21 +150,6 @@ def clean_configs():
          check_call('docker exec {} rm /etc/cabsagent.conf'.format(machine).split())
          restart(machine)
     dirty_configs = set()
-
-def write_config(machine, key, value):
-    global dirty_configs
-    global verbose
-
-    if verbose:
-        print("setting '{}: {}' on {}".format(key, value, machine))
-    check_call(['docker', 'exec', '--', machine, 'bash', '-c',
-                'echo {}: {} >> /etc/cabsagent.conf'.format(key, value)])
-
-    tmp_verbose = verbose
-    verbose = False
-    restart(machine)
-    verbose = tmp_verbose
-    dirty_configs.add(machine)
 
 def broker_cmd(*args, **kwargs):
     port = kwargs.get('port', 18181)
@@ -230,6 +230,21 @@ def test():
     print("All tests pass.")
     print("cleaning up...")
     setup()
+
+def write_config(hostname=None, key=None, value=None):
+    global dirty_configs
+    global verbose
+
+    if verbose:
+        print("setting '{}: {}' on {}".format(key, value, hostname))
+    check_call(['docker', 'exec', '--', hostname, 'bash', '-c',
+                'echo {}: {} >> /etc/cabsagent.conf'.format(key, value)])
+
+    tmp_verbose = verbose
+    verbose = False
+    restart(hostname)
+    verbose = tmp_verbose
+    dirty_configs.add(hostname)
 
 def request(user=None, pool=None, **kwargs):
     machine = broker_cmd("mr", user, "mypassword", pool, **kwargs)
@@ -383,6 +398,12 @@ if __name__ == "__main__":
     p.add_argument("action", choices=['set', 'unset'])
     p.add_argument("state", choices=states)
     p.set_defaults(func=state)
+
+    p = sub.add_parser("config", help="set a config option of an agent")
+    p.add_argument("hostname")
+    p.add_argument("key")
+    p.add_argument("value")
+    p.set_defaults(func=write_config)
 
     args = vars(parser.parse_args())
     func = args['func']
