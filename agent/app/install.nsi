@@ -46,6 +46,8 @@ Section "CABS Agent (required)"
   
   #Copy over the other items
   CopyFiles $EXEDIR\cabsagent.conf $INSTDIR
+  CreateDirectory $INSTDIR\checks
+  CopyFiles $EXEDIR\checks\* $INSTDIR\checks
   FindFirst $0 $1 $EXEDIR\*.pem
 	DetailPrint 'Found "$EXEDIR\$1"'
 	CopyFiles $EXEDIR\$1 $INSTDIR
@@ -55,7 +57,7 @@ Section "CABS Agent (required)"
   Exec '"$INSTDIR\cabsagentsvc.exe" --startup=auto install'
   Exec '"$INSTDIR\cabsagentsvc.exe" start'
 
-  
+
   # Write the installation path into the registry
   WriteRegStr HKLM SOFTWARE\CABS_agent "Install_Dir" "$INSTDIR"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_agent" "UninstallString" '"$INSTDIR\uninstall.exe"'

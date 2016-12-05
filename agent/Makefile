@@ -8,11 +8,12 @@ default: installer archive
 
 archive:
 	mkdir -p $(DIR)
-	cd app && cp agent_server.pem \
-				 broker_cert.pem \
-				 cabsagent.conf \
-				 cabsagentsvc.exe \
-				 install.exe \
+	cd app && cp -r agent_server.pem \
+				    broker_cert.pem \
+				    cabsagent.conf \
+				    cabsagentsvc.exe \
+				    install.exe \
+					checks/ \
 		      ../$(DIR)
 	cd build && zip -r $(NAME).zip $(NAME)/
 

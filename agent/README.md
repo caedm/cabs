@@ -19,14 +19,16 @@ cabsagent`.
 
 ### Windows
 #### Building
-First, you have to create cabsagentsvc.exe with pyinstaller. In a Windows environment,
+First, you have to create cabsagentsvc.exe and the executables for any python scripts in
+`app\checks\` with pyinstaller. In a Windows environment,
  - install ActiveState python. This will ensure the win32 python modules are installed
    correctly. If the modules aren't installed correctly, later on the Windows service will give
    an error about the service not starting in a timely fashion.
  - Install dependency modules: `pip -r app/requirements.txt`.
  - Install pyinstaller: `pip install pyinstaller`
- - Create the executable: `pyinstaller --onefile app/cabsagentsvc.py`
- - Move the executable from `dist/cabsagentsvc.exe` to `app/cabsagentsvc.exe`
+ - Create the executables by running `build.bat`. This will also move the new exe files to
+   their proper locations. If you didn't do this in a shared folder from a Windows VM, you'll
+   need to copy the exe files in `app/` and `app/checks` back to your Linux machine.
 
 After that, you can run `make` from Linux to create a zipfile with the installation script.
 Make will include ssl certificates that are not checked into git, so make sure those are in the
