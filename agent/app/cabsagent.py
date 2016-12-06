@@ -127,8 +127,10 @@ def heartbeat():
 def run_check(script):
     scriptfile = join(settings["Checks_Dir"], script[0])
     args = script[1:]
+    if DEBUG:
+        print "running {}".format([scriptfile] + args)
     try:
-        return check_output([scriptfile] + args)
+        return check_output(' '.join([scriptfile] + args), shell=True)
     except CalledProcessError as e:
         print "Couldn't run check {}: {}".format(basename(scriptfile), e)
         return "Okay"
@@ -203,9 +205,6 @@ def readConfigFile(config):
 def start(config=default_config):
     print("starting up")
     readConfigFile(config)
-    global checks
-    if settings['Process_Listen'] and psutil:
-        checks.append(ps_check)
     t = Thread(target=heartbeat_loop)
     t.daemon = True
     t.start()
