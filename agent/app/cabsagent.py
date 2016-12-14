@@ -23,6 +23,11 @@ from twisted.internet import reactor, endpoints
 from twisted.protocols.basic import LineOnlyReceiver
 from argparse import ArgumentParser
 from os.path import isfile, isabs, basename, join
+import logging
+
+log = logging.getLogger()
+log.setLevel(logging.DEBUG)
+log.addHandler(logging.StreamHandler())
 
 ERR_GET_STATUS = -1
 STATUS_PS_NOT_FOUND = 0
@@ -45,7 +50,7 @@ settings = { "Host_Addr":'broker',
              "Interval":1,
              "Process_Listen":None,
              "Hostname":None,
-             "Checks_Dir":join(application_path, 'checks'),
+             "Checks_Dir":'checks',
              "Check_Scripts": ""}
 DEBUG = False
 
@@ -63,7 +68,7 @@ if os.name == "posix":
         return userlist
 
     def reboot():
-        print("rebooting")
+        log.info("rebooting")
         subprocess.call(["shutdown", "-r", "now"])
 
     def restart():
@@ -78,21 +83,33 @@ else:
 
     import win32api
     import win32serviceutil
-    from getpass import getuser
 
     def user_list():
-        return [getuser()]
+        try:
+            output = check_output(['query.exe', 'user'])
+        except CalledProcessError as e:
+            # query.exe returns 1 after successful execution. It was obviously written by a
+            # Roman unfamiliar with the concept of 0.
+            output = e.output
+            
+        userlist = set()
+        for i in range(1,len(output.split('\r\n'))-1):
+            user = output.split('\r\n')[i].split()[0]
+            if user.startswith(">"):
+                user = user[1:]
+            userlist.add(user)
+        return userlist
 
     def restart():
-        print "restarting"
+        log.info("restarting")
         if settings["Process_Listen"] is None:
-            print "no process to restart"
+            log.info("no process to restart")
             return
         #print "win32serviceutil.RestartService({})".format(settings["Process_Listen"])
         win32serviceutil.RestartService(settings["Process_Listen"].rstrip(".exe"))
 
     def reboot():
-        print "rebooting"
+        log.info("rebooting")
         win32api.InitiateSystemShutdown(None, None, 0, 1, 1)
 
     def stop():
@@ -102,14 +119,16 @@ else:
 def heartbeat_loop():
     s = scheduler(time, sleep)
     #read config for time interval, in seconds
-    print "Starting. Pulsing every {0} seconds.".format(settings.get("Interval"))
+    log.info("Starting. Pulsing every {0} seconds.".format(settings.get("Interval")))
     while not requestStop:
         s.enter(int(settings.get("Interval")), 1, heartbeat, ())
         s.run()
 
 def heartbeat():
+    log.info("doing a heartbeat")
     content = "spr:{}:{}{}\r\n".format(getStatus(), settings["Hostname"],
             "".join(':' + user for user in user_list()))
+    log.info("content: {}".format(content))
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((settings.get("Host_Addr"), int(settings.get("Agent_Port"))))
@@ -120,28 +139,38 @@ def heartbeat():
                         ssl_version=ssl.PROTOCOL_SSLv23)
         
         s_wrapped.sendall(content)
-        print "Told server " + content 
-    except:
-        traceback.print_exc()
+        log.info("Told server " + content )
+    except Exception as e:
+        log.info('there was an error')
+        log.exception(str(e))
 
 def run_check(script):
+    # NOTE: We run check_output with shell=True so that scripts like "whatever.py" can run in
+    # Windows. Otherwise we'd have to specify the interpreter, e.g. check_call(['python',
+    # 'whatever.py']). Unfortunately this means that spaces in the path to the script will
+    # cause things to break. The best solution would possibly be to programmatically figure out
+    # what interpreter to use based on the file extension (like the shell does) and then do a
+    # normal check_output without shell=True.
     scriptfile = join(settings["Checks_Dir"], script[0])
     args = script[1:]
-    if DEBUG:
-        print "running {}".format([scriptfile] + args)
+    log.info("running {}".format(repr(' '.join([scriptfile] + args))))
     try:
         return check_output(' '.join([scriptfile] + args), shell=True)
     except CalledProcessError as e:
-        print "Couldn't run check {}: {}".format(basename(scriptfile), e)
+        log.info("Couldn't run check {}: {}".format(basename(scriptfile), e))
         return "Okay"
 
 def getStatus():
     if DEBUG and isfile('/tmp/oldstatus'):
         return "rgsender3"
 
+    # ugly hack for windows. make sure we're in the right directory.
+    olddir = os.getcwd()
+    os.chdir(application_path)
     problems = [result for result in [run_check(script).strip()
                                       for script in settings["Check_Scripts"]]
                        if result != "Okay"]
+    os.chdir(olddir)
     return ",".join(problems) if problems else "Okay"
 
 class CommandHandler(LineOnlyReceiver):
@@ -151,7 +180,7 @@ class CommandHandler(LineOnlyReceiver):
     """
     def lineReceived(self, line):
         command = line.strip()
-        print "received command: " + command
+        log.info("received command: " + command)
         if command == "restart":
             restart()
         elif command == "reboot":
@@ -180,10 +209,10 @@ def readConfigFile(config):
                 try:
                     key, val = [word.strip() for word in line.split(':', 1)]
                 except ValueError:
-                    print "Warning: unrecognized setting: " + line
+                    log.info("Warning: unrecognized setting: " + line)
                     continue
                 if key not in settings:
-                    print "Warning: unrecognized setting: " + line
+                    log.info("Warning: unrecognized setting: " + line)
                     continue
                 settings[key] = val
             f.close()
@@ -198,12 +227,18 @@ def readConfigFile(config):
         #If we want a fqdn we can use socket.gethostbyaddr(socket.gethostname())[0]
         settings["Hostname"] = socket.gethostname()
     
-    if not isabs(settings["Checks_Dir"]):
-        settings["Checks_Dir"] = join(application_path, settings["Checks_Dir"])
     settings["Check_Scripts"] = [line.split(',') for line in settings["Check_Scripts"].split()]
 
 def start(config=default_config):
-    print("starting up")
+    if os.name == 'nt':
+        handler = logging.FileHandler(join(os.getenv('APPDATA'), 'cabsagent.log'))
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        log.addHandler(handler)
+        log.info('testing filehandler')
+
+    log.info("starting up")
+    log.info("CWD is {}".format(os.getcwd()))
     readConfigFile(config)
     t = Thread(target=heartbeat_loop)
     t.daemon = True
@@ -214,7 +249,7 @@ def start(config=default_config):
         endpoint.listen(Factory.forProtocol(CommandHandler))
     else:
         start_ssl_cmd_server()
-    print "running the reactor"
+    log.info("running the reactor")
     reactor.run()
 
 if __name__ == "__main__":

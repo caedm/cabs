@@ -13,8 +13,12 @@ archive:
 				    cabsagent.conf \
 				    cabsagentsvc.exe \
 				    install.exe \
-					checks/ \
 		      ../$(DIR)
+	mkdir -p $(DIR)/checks
+	cd app/checks && cp -r example.bat \
+						   pscheck.exe \
+						   bad.bat \
+				  	 ../../$(DIR)/checks/
 	cd build && zip -r $(NAME).zip $(NAME)/
 
 installer:

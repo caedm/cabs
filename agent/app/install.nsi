@@ -48,10 +48,12 @@ Section "CABS Agent (required)"
   CopyFiles $EXEDIR\cabsagent.conf $INSTDIR
   CreateDirectory $INSTDIR\checks
   CopyFiles $EXEDIR\checks\* $INSTDIR\checks
-  FindFirst $0 $1 $EXEDIR\*.pem
-	DetailPrint 'Found "$EXEDIR\$1"'
-	CopyFiles $EXEDIR\$1 $INSTDIR
-  FindClose $0
+  CopyFiles $EXEDIR\*.pem $INSTDIR
+
+  #FindFirst $0 $1 $EXEDIR\*.pem
+  #  DetailPrint 'Found "$EXEDIR\$1"'
+  #  CopyFiles $EXEDIR\$1 $INSTDIR
+  #FindClose $0
   
   #Install the Service
   Exec '"$INSTDIR\cabsagentsvc.exe" --startup=auto install'

@@ -31,9 +31,9 @@ First, you have to create cabsagentsvc.exe and the executables for any python sc
    need to copy the exe files in `app/` and `app/checks` back to your Linux machine.
 
 After that, you can run `make` from Linux to create a zipfile with the installation script.
-Make will include ssl certificates that are not checked into git, so make sure those are in the
-app directory. You may want to edit `app/cabsagent.conf` before running `make` so that the
-zipfile will contain the configuration you want.
+Make will try to include ssl certificates that are not checked into git, so make sure those are
+in the app directory. You may want to edit `app/cabsagent.conf` before running `make` so that
+the zipfile will contain the configuration you want.
 
 #### Installing
 Once the zipfile is created (it will be at `build/cabsagent-windows-<version>.zip`), copy it to
@@ -43,3 +43,7 @@ immediately and set it to start on boot.
 If something doesn't work, you can test it out by
 running `cabsagentsvc.exe debug` from a command prompt in the `C:\Program Files\CABS\Agent`
 directory. You may have to run `cabsagentsvc.exe stop` first if the service is already running.
+
+## Troubleshooting
+On Windows, the logs are stored in the Local System user's APPDATA folder. This folder could be
+'C:\Windows\System32\config\systemprofile\AppData\Roaming`. 
