@@ -19,6 +19,10 @@ else
 fi
 mkdir -p $DIR/checks
 cp checks/* $DIR/checks
+cp *.pem $DIR/
+if [ -f version.txt ]; then
+    cp version.txt $DIR/
+fi
 
 echo
 echo Installation complete.

@@ -3,7 +3,7 @@ from __future__ import print_function
 from argparse import ArgumentParser
 import code
 import socket
-from subprocess import check_call, check_output, STDOUT
+from subprocess import check_call, check_output, STDOUT, call
 from time import time, sleep
 import re
 import json
@@ -64,15 +64,17 @@ def test_nopanel():
     assert dump()['main1']['status'] == 'no_panel'
     print("main1 status is 'no_panel'")
 
-    ts = timestamp('main1')
+    #ts = timestamp('main1')
 
     logoff('main1')
     wait_heartbeat('main1')
     assert dump()['main1']['status'] == 'no_panel'
     print("main1 status is 'no_panel'")
 
-    assert "Failed to talk to init daemon." in logs('main1', ts)
+    #assert "Failed to talk to init daemon." in logs('main1', ts)
+    assert get_state('main1', 'shutdown')
     print("main1 rebooted")
+    state('main1', 'unset', 'shutdown')
 
     logon('main2', 'foo')
     logon('main3', 'bar')
@@ -127,16 +129,22 @@ test_funcs = [test_handle_json, test_external_checks, test_nopanel,
 # UTILS
 ###############################################################################
 
-def logs(hostname, since=None):
-    return check_output(['docker', 'logs'] +
-            ([] if not since else ['--since', since]) +
-            [hostname], stderr=STDOUT)
+def get_state(hostname, state):
+    return not bool(call(['docker', 'exec', hostname, '[', '-f',
+                          '/tmp/' + state, ']']))
 
+# We ended up not needing these functions, but I'm leaving them because they might come in
+# handy later. See the commented code in test_nopanel for usage.
 
-def timestamp(hostname):
-    last_line = (check_output(['docker', 'logs', '-t', hostname], stderr=STDOUT)
-                 .strip().split('\n')[-1])
-    return last_line if isinstance(last_line, basestring) else last_line[0]
+#def logs(hostname, since=None):
+#    return check_output(['docker', 'logs'] +
+#            ([] if not since else ['--since', since]) +
+#            [hostname], stderr=STDOUT)
+
+#def timestamp(hostname):
+#    last_line = (check_output(['docker', 'logs', '-t', hostname], stderr=STDOUT)
+#                 .strip().split('\n')[-1])
+#    return last_line if isinstance(last_line, basestring) else last_line[0]
 
 def setup():
     clean_configs()

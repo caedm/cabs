@@ -12,10 +12,15 @@ must be added to the Broker's database manually. See cabs-broker for more
 information.
 
 ### Linux
-Copy the `app/` directory to the machine and run `app/install.sh`. This will install the agent
-to `/opt/cabsagent/`. After installation, edit `/opt/cabsagent/cabsagent.conf` as needed. Start
+Run `make linux` to create an archive named `build/cabsagent-linux-<version>.zip`. Copy the
+contents to the target machine and run `install.sh`. This will install the agent to
+`/opt/cabsagent/`. After installation, edit `/opt/cabsagent/cabsagent.conf` as needed. Start
 the service with `systemctl start cabsagent`. Set it to start on boot with `systemctl enable
 cabsagent`.
+
+You can update the service simply by running `install.sh` again followed by `systemctl restart
+cabsagent`. The install script won't overwrite `cabsagent.conf`, so make sure to manually add
+in any changes you need.
 
 ### Windows
 #### Building
@@ -30,10 +35,9 @@ First, you have to create cabsagentsvc.exe and the executables for any python sc
    their proper locations. If you didn't do this in a shared folder from a Windows VM, you'll
    need to copy the exe files in `app/` and `app/checks` back to your Linux machine.
 
-After that, you can run `make` from Linux to create a zipfile with the installation script.
-Make will try to include ssl certificates that are not checked into git, so make sure those are
-in the app directory. You may want to edit `app/cabsagent.conf` before running `make` so that
-the zipfile will contain the configuration you want.
+After that, you can run `make windows` from Linux to create a zipfile with the installation
+script. Make will try to include ssl certificates that are not checked into git, so make sure
+those are in the app directory. 
 
 #### Installing
 Once the zipfile is created (it will be at `build/cabsagent-windows-<version>.zip`), copy it to

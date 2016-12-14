@@ -46,6 +46,7 @@ Section "CABS Agent (required)"
   
   #Copy over the other items
   CopyFiles $EXEDIR\cabsagent.conf $INSTDIR
+  CopyFiles $EXEDIR\version.txt $INSTDIR
   CreateDirectory $INSTDIR\checks
   CopyFiles $EXEDIR\checks\* $INSTDIR\checks
   CopyFiles $EXEDIR\*.pem $INSTDIR
@@ -70,6 +71,7 @@ Section "CABS Agent (required)"
 SectionEnd
 
 Section "Uninstall"
+  # TODO make it actually remove all the files it installs
   # Remove registry keys
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_agent"
   DeleteRegKey HKLM SOFTWARE\CABS_agent

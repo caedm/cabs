@@ -9,6 +9,7 @@ import psutil
 import re
 from argparse import ArgumentParser
 import subprocess
+from os.path import join
 
 if os.name == "posix":
     default = "rgsender"

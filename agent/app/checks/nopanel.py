@@ -15,7 +15,7 @@ def win_info(user, display):
         return template.format('-48' if isfile('/tmp/no_panel') else '0')
     else:
         return check_output("script -c 'DISPLAY={} sudo -u {} wmctrl -lG' /dev/null"
-                            "| grep -v Script".format(display, user), shell=True)
+                            "| { grep -v Script || true; }".format(display, user), shell=True)
 
 def panel_check():
     no_panel = isfile('/tmp/cabs-nopanel')

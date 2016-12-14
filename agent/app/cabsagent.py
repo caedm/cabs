@@ -26,7 +26,7 @@ from os.path import isfile, isabs, basename, join
 import logging
 
 log = logging.getLogger()
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.WARNING)  # only used until we read from the config file
 log.addHandler(logging.StreamHandler())
 
 ERR_GET_STATUS = -1
@@ -51,7 +51,8 @@ settings = { "Host_Addr":'broker',
              "Process_Listen":None,
              "Hostname":None,
              "Checks_Dir":'checks',
-             "Check_Scripts": ""}
+             "Check_Scripts": "",
+             "Log_Level": "INFO"}
 DEBUG = False
 
 if os.name == "posix":
@@ -74,7 +75,6 @@ if os.name == "posix":
     def restart():
         subprocess.call(["init", "2"])
         Timer(10, subprocess.call, (["init", "5"],)).start()
-        #subprocess.call(["init", "5"])
 else:
     assert os.name == "nt"
 
@@ -86,7 +86,9 @@ else:
 
     def user_list():
         try:
-            output = check_output(['query.exe', 'user'])
+            with open(os.devnull, 'r+') as devnull:
+                output = check_output(['query.exe', 'user'],
+                                      stdin=devnull, stderr=devnull)
         except CalledProcessError as e:
             # query.exe returns 1 after successful execution. It was obviously written by a
             # Roman unfamiliar with the concept of 0.
@@ -103,9 +105,8 @@ else:
     def restart():
         log.info("restarting")
         if settings["Process_Listen"] is None:
-            log.info("no process to restart")
+            log.warning("no process to restart")
             return
-        #print "win32serviceutil.RestartService({})".format(settings["Process_Listen"])
         win32serviceutil.RestartService(settings["Process_Listen"].rstrip(".exe"))
 
     def reboot():
@@ -118,18 +119,17 @@ else:
 
 def heartbeat_loop():
     s = scheduler(time, sleep)
-    #read config for time interval, in seconds
-    log.info("Starting. Pulsing every {0} seconds.".format(settings.get("Interval")))
+    log.debug("Starting. Pulsing every {0} seconds.".format(settings.get("Interval")))
     while not requestStop:
         s.enter(int(settings.get("Interval")), 1, heartbeat, ())
         s.run()
 
 def heartbeat():
-    log.info("doing a heartbeat")
-    content = "spr:{}:{}{}\r\n".format(getStatus(), settings["Hostname"],
-            "".join(':' + user for user in user_list()))
-    log.info("content: {}".format(content))
     try:
+        log.debug("doing a heartbeat")
+        content = "spr:{}:{}{}\r\n".format(getStatus(), settings["Hostname"],
+                "".join(':' + user for user in user_list()))
+        log.debug("content: {}".format(content))
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((settings.get("Host_Addr"), int(settings.get("Agent_Port"))))
         if settings.get("Broker_Cert") is None:
@@ -141,23 +141,33 @@ def heartbeat():
         s_wrapped.sendall(content)
         log.info("Told server " + content )
     except Exception as e:
-        log.info('there was an error')
+        log.error('there was an error')
         log.exception(str(e))
 
 def run_check(script):
-    # NOTE: We run check_output with shell=True so that scripts like "whatever.py" can run in
-    # Windows. Otherwise we'd have to specify the interpreter, e.g. check_call(['python',
-    # 'whatever.py']). Unfortunately this means that spaces in the path to the script will
-    # cause things to break. The best solution would possibly be to programmatically figure out
-    # what interpreter to use based on the file extension (like the shell does) and then do a
-    # normal check_output without shell=True.
     scriptfile = join(settings["Checks_Dir"], script[0])
     args = script[1:]
-    log.info("running {}".format(repr(' '.join([scriptfile] + args))))
+    cmdlist = [scriptfile] + args
+
+    if os.name == 'nt':
+        # If we want need different kinds of scripts, add more if clauses here. Using
+        # shell=True for check_output would figure out the correct interpreter automatically,
+        # but doing that (besides being ugly) makes check_output hang when called on Windows
+        # from a compiled (with pyinstaller) service (cabsagent.exe). It's weird. If there's
+        # some windows system call we can use to get the default interpreter for a given
+        # extension, that would be the best thing to do.
+        if scriptfile.endswith('.py'):
+            cmdlist = ['python'] + cmdlist
+
+    log.debug("running {} from {}".format(cmdlist, os.getcwd()))
     try:
-        return check_output(' '.join([scriptfile] + args), shell=True)
+        # Windows calls the program without stdin attached. If we don't specify devnull as
+        # stdin, the program crashes because it tries to read from stdin but doesn't have
+        # permission.
+        with open(os.devnull, 'r+') as devnull:
+            return check_output(cmdlist, stdin=devnull, stderr=devnull)
     except CalledProcessError as e:
-        log.info("Couldn't run check {}: {}".format(basename(scriptfile), e))
+        log.error("Couldn't run check {}: {}".format(basename(scriptfile), e))
         return "Okay"
 
 def getStatus():
@@ -209,10 +219,10 @@ def readConfigFile(config):
                 try:
                     key, val = [word.strip() for word in line.split(':', 1)]
                 except ValueError:
-                    log.info("Warning: unrecognized setting: " + line)
+                    log.warning("Warning: unrecognized setting: " + line)
                     continue
                 if key not in settings:
-                    log.info("Warning: unrecognized setting: " + line)
+                    log.warning("Warning: unrecognized setting: " + line)
                     continue
                 settings[key] = val
             f.close()
@@ -229,17 +239,22 @@ def readConfigFile(config):
     
     settings["Check_Scripts"] = [line.split(',') for line in settings["Check_Scripts"].split()]
 
+    if settings['Log_Level'] not in ('CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'):
+        log.warning('invalid value for Log_Level, using "WARNING" instead')
+        settings['Log_Level'] = 'WARNING'
+
 def start(config=default_config):
     if os.name == 'nt':
         handler = logging.FileHandler(join(os.getenv('APPDATA'), 'cabsagent.log'))
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
         log.addHandler(handler)
-        log.info('testing filehandler')
 
-    log.info("starting up")
-    log.info("CWD is {}".format(os.getcwd()))
     readConfigFile(config)
+    log.setLevel(getattr(logging, settings['Log_Level']))
+    log.info("starting up")
+    log.debug("CWD is {}".format(os.getcwd()))
+
     t = Thread(target=heartbeat_loop)
     t.daemon = True
     t.start()
@@ -249,7 +264,7 @@ def start(config=default_config):
         endpoint.listen(Factory.forProtocol(CommandHandler))
     else:
         start_ssl_cmd_server()
-    log.info("running the reactor")
+    log.debug("running the reactor")
     reactor.run()
 
 if __name__ == "__main__":
