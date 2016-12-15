@@ -29,6 +29,16 @@ When developing the agent, use `./control.py restart` to restart the cabs agent 
 Docker containers. If you make changes to the Dockerfile for the agent, use `./control.py
 build` to rebuild the image and stop all containers running the old image.
 
+Also, watch out for certificate files. Those are the only files we haven't checked into the git
+repo (for obvious reasons). On my machine, I have the following files:
+
+    agent/app/agent_server.pem
+    agent/app/broker_cert.pem
+    client/app/src/cert.pem
+
+You don't need these files to run the automated test cases in `control.py`, but you will need
+them when running `make` for the agent or client. It's probably easiest to get them from one of
+our working machines that has the agent/client already installed.
 
 ## Release Notes
 
