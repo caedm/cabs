@@ -28,3 +28,43 @@ etc. Run `./control.py --help` for a list of commands.
 When developing the agent, use `./control.py restart` to restart the cabs agent on all running
 Docker containers. If you make changes to the Dockerfile for the agent, use `./control.py
 build` to rebuild the image and stop all containers running the old image.
+
+
+## Release Notes
+
+### v12142016-2
+
+Bug Fixes:
+1)  Passwords with colons
+
+New Features:
+1)  The agent talks with the RGS Tester.  If the tester can't log in to  a blade, it is
+disabled by "auto-it".  The rgsconnect agent if it finds itself in this state will first
+attempt to restart the rgs sender service to rectify the problem.  If the tester then finds the
+system working on the next round of tests, then the blade is re-enabled.  If the tester still
+can't log in on the next round of tests, it will send a reboot command to the agent service.  
+This feature has been working beautifully on the Linux systems for multiple semesters now
+without any ill effects.
+
+2) The agent can have modules loaded to test for broken conditions.  If a broken condition is
+found, the agent can tell the broker to not have anyone visit that machine.  The modules can
+include code to rectify the problem if desired.
+
+
+Notes from the developer:
+
+install.exe should start the agent running right away, but it wasn't doing it for me. The
+service did start automatically after I rebooted though. Alternatively, you can run `sc
+start cabs_agent` from a command prompt to start it immediately.
+
+The agent writes logs to the Local System user's APPDATA folder. On my VM, the location
+was C:\Windows\System32\config\systemprofile\AppData\Roaming\cabsagent.log. By default
+on Windows, the log level is set to WARNING (so there shouldn't be anything in the log
+if all is well). If you edit \Program Files\CABS\Agent\cabsagent.conf and set Log_Level
+to INFO (and then restart the cabs agent service), the agent will log every time it
+sends a heartbeat which could be handy if you're not sure whether or not it's working.
+
+Oh, and one more thing: I don't think the install.exe file will work unless they
+uninstall the existing agent first (fixing that could be on the todo list). Running
+\Program Files\CABS\Agent\uninstall.exe should do it, but they should check the Agent
+folder and delete any files that uninstall.exe doesn't take care of.

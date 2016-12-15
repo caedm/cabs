@@ -283,8 +283,11 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         # Don't give back a machine that hasn't been confirmed. If a machine is sketchy and the
         # user can't log in, we don't want to give them the same machine when they request
         # another one.
+
+        # NOTE: This query doesn't return confirmed machines correctly
         #query = "SELECT machine FROM current WHERE user = %s AND name = %s AND confirmed = True"
 
+        # NOTE: This is the new and improved code.
         query = (r'SELECT current.machine FROM current LEFT JOIN machines ON '
                   'current.machine = machines.machine '
                   'WHERE user = %s AND confirmed = True AND status LIKE "%%Okay" '
