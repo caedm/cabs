@@ -35,6 +35,7 @@ build` to rebuild the image and stop all containers running the old image.
 ### v12142016-2
 
 Bug Fixes:
+
 1. Passwords with colons
 
 New Features:
