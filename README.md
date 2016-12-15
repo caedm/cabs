@@ -35,20 +35,21 @@ build` to rebuild the image and stop all containers running the old image.
 ### v12142016-2
 
 Bug Fixes:
-1)  Passwords with colons
+1. Passwords with colons
 
 New Features:
-1)  The agent talks with the RGS Tester.  If the tester can't log in to  a blade, it is
-disabled by "auto-it".  The rgsconnect agent if it finds itself in this state will first
-attempt to restart the rgs sender service to rectify the problem.  If the tester then finds the
-system working on the next round of tests, then the blade is re-enabled.  If the tester still
-can't log in on the next round of tests, it will send a reboot command to the agent service.  
-This feature has been working beautifully on the Linux systems for multiple semesters now
-without any ill effects.
 
-2) The agent can have modules loaded to test for broken conditions.  If a broken condition is
-found, the agent can tell the broker to not have anyone visit that machine.  The modules can
-include code to rectify the problem if desired.
+1. The agent talks with the RGS Tester.  If the tester can't log in to  a blade, it is disabled
+   by "auto-it".  The rgsconnect agent if it finds itself in this state will first attempt to
+   restart the rgs sender service to rectify the problem.  If the tester then finds the system
+   working on the next round of tests, then the blade is re-enabled.  If the tester still can't
+   log in on the next round of tests, it will send a reboot command to the agent service.  This
+   feature has been working beautifully on the Linux systems for multiple semesters now without
+   any ill effects.
+
+2. The agent can have modules loaded to test for broken conditions.  If a broken condition is
+   found, the agent can tell the broker to not have anyone visit that machine.  The modules can
+   include code to rectify the problem if desired.
 
 
 Notes from the developer:
