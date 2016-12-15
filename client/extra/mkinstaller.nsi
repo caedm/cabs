@@ -8,7 +8,7 @@ Name "RGSConnect"
 
 # The file to write
 #OutFile "Install_CABS_Full_Client.exe"
-OutFile "../install_rgsconnect-${VERSION}.exe"
+OutFile "install_rgsconnect-${VERSION}.exe"
 
 # The default installation directory
 InstallDir "C:\Program Files\CABS\Client"

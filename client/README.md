@@ -21,14 +21,9 @@ Follow these steps to set up a Windows environment:
  - set up a shared folder so windows has access to the `app` and `build`
    directories.
 
-Then you can create the windows binary with this command:
-`pyinstaller --onefile --clean --distpath build/pyinstaller/dist
---workpath build/pyinstaller --specpath build/pyinstaller
---name RGSConnect-windows app/src/CABS_client.py`
-
-After that, run `make windows` (from Linux) to create a distributable
-Windows installer. nsis must be installed.
+Then you can create the windows binary by running `build.bat`. After that, run `make windows`
+(from Linux) to create a distributable Windows installer. nsis must be installed.
 
 ## Installation
 After building, copy the newly created archive to the target machine and run either `install.sh`
-or `install.exe`. Make sure to edit `CABS_client.conf` as needed.
+or `install.exe`.

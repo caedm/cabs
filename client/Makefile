@@ -1,4 +1,5 @@
 VERSION=$(shell cat ../version.txt)
+RGSVERSION=7.3.1.10284-1
 NAME=rgsconnect-$(OS)-$(VERSION)
 DIR=build/$(NAME)
 
@@ -7,8 +8,8 @@ DIST=$(GEN)/dist
 OPTS=--onefile --clean --distpath $(DIST) --workpath $(GEN) \
      --specpath $(GEN) --name RGSConnect-$(DISTRO)
 
-RPM=app/src/rgreceiver_linux_64-$(VERSION).x86_64.rpm
-DEB=app/src/rgreceiver-linux-64_$(VERSION)_amd64.deb
+RPM=app/src/rgreceiver_linux_64-$(RGSVERSION).x86_64.rpm
+DEB=app/src/rgreceiver-linux-64_$(RGSVERSION)_amd64.deb
 
 all: linux windows
 
@@ -49,11 +50,20 @@ rhel:
 windows: $(DIST)/RGSConnect-windows.exe
 	$(eval OS := windows)
 	mkdir -p $(DIR)
-	cp -rL app/src/* $(DIR)
 	cp $(DIST)/RGSConnect-windows.exe $(DIR)/CABS_client.exe
+	cd app/src && cp cert.pem \
+					 Header.png \
+					 Icon.ico \
+					 Icon.png \
+				  ../../$(DIR)/
+	cd extra && cp ReceiverSetup.exe \
+				   mkinstaller.nsi \
+				../$(DIR)/
+	cp extra/CABS_client-windows.conf $(DIR)/CABS_client.conf
 	cp ../version.txt $(DIR)/version.txt
-	cp extra/{mkinstaller.nsi,ReceiverSetup.exe} $(DIR)
-	makensis -DVERSION=$(VERSION) $(DIR)/mkinstaller.nsi
+	cd $(DIR) && makensis -DVERSION=$(VERSION) mkinstaller.nsi
+	rm $(DIR)/mkinstaller.nsi
+	cd build && zip -r $(NAME).zip $(NAME)
 
 clean:
 	rm -rf build/*
