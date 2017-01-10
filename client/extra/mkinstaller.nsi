@@ -15,7 +15,7 @@ InstallDir "C:\Program Files\CABS\Client"
 
 # Registry key to check for directory (so if you install again, it will 
 # overwrite the old one automatically)
-InstallDirRegKey HKLM "Software\CABS_client" "Install_Dir"
+InstallDirRegKey HKLM "Software\RGSConnect" "Install_Dir"
 
 # Request application privileges for Windows Vista
 RequestExecutionLevel admin
@@ -35,12 +35,11 @@ Page instfiles
 UninstPage uninstConfirm
 UninstPage instfiles
 
-#--------------------------------
-
 Section "HP rgreceiver (required)"
     SectionIn RO
+    SetOutPath $INSTDIR
     File "ReceiverSetup.exe"
-    ExecWait "$INSTDIR\ReceiverSetup.exe"
+    Exec "$INSTDIR\ReceiverSetup.exe"
 SectionEnd
 
 # The stuff to install
@@ -51,18 +50,19 @@ Section "RGSConnect (required)"
   SetOutPath $INSTDIR
   
   # Put file there
-  File "CABS_client.exe"
+  File "RGSConnect.exe"
   File "Header.png"
-  File "Icon.ico"
+  File "Icon.png"
+  File "icon.ico"
   File "version.txt"
   File "CABS_client.conf"
   File "cert.pem"
   
   # Write the installation path into the registry
-  WriteRegStr HKLM SOFTWARE\CABS_client "Install_Dir" "$INSTDIR"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_client" "UninstallString" '"$INSTDIR\uninstall.exe"'
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_client" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_client" "NoRepair" 1
+  WriteRegStr HKLM SOFTWARE\RGSConnect "Install_Dir" "$INSTDIR"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RGSConnect" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RGSConnect" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RGSConnect" "NoRepair" 1
   WriteUninstaller $INSTDIR\uninstaller.exe
   
 SectionEnd
@@ -72,20 +72,21 @@ Section "Start Menu Shortcuts"
 
   CreateDirectory "$SMPROGRAMS\CABS"
   CreateShortcut "$SMPROGRAMS\CABS\Uninstaller.lnk" "$INSTDIR\uninstaller.exe" "" "$INSTDIR\uninstaller.exe" 0
-  CreateShortcut "$SMPROGRAMS\CABS\CABS_Client.lnk" "$INSTDIR\CABS_client.exe" "" "$INSTDIR\Icon.ico" 0
+  CreateShortcut "$SMPROGRAMS\CABS\RGSConnect.lnk" "$INSTDIR\RGSConnect.exe" "" "$INSTDIR\icon.ico" 0
   
 SectionEnd
 
 Section "Uninstall"
   # Remove registry keys
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_client"
-  DeleteRegKey HKLM SOFTWARE\CABS_client
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RGSConnect"
+  DeleteRegKey HKLM SOFTWARE\RGSConnect
 
   Delete $INSTDIR\uninstaller.exe
  
-  Delete $INSTDIR\CABS_client.exe
+  Delete $INSTDIR\RGSConnect.exe
   Delete $INSTDIR\Header.png
-  Delete $INSTDIR\Icon.ico
+  Delete $INSTDIR\Icon.png
+  Delete $INSTDIR\icon.ico
   Delete $INSTDIR\version.txt
   Delete $INSTDIR\CABS_client.conf
   Delete $INSTDIR\ReceiverSetup.exe

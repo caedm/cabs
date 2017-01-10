@@ -50,11 +50,11 @@ rhel:
 windows: $(DIST)/RGSConnect-windows.exe
 	$(eval OS := windows)
 	mkdir -p $(DIR)
-	cp $(DIST)/RGSConnect-windows.exe $(DIR)/CABS_client.exe
+	cp $(DIST)/RGSConnect-windows.exe $(DIR)/RGSConnect.exe
 	cd app/src && cp cert.pem \
 					 Header.png \
-					 Icon.ico \
 					 Icon.png \
+					 icon.ico \
 				  ../../$(DIR)/
 	cd extra && cp ReceiverSetup.exe \
 				   mkinstaller.nsi \

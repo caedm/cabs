@@ -30,10 +30,12 @@ fi
 
 set -e
 mkdir -vp $dir
-cp -vr $files $dir/
-cp -v $bin $dir/RGSConnect
+for f in $files; do
+    install -vm 644 $f $dir/$f
+done
+install -v $bin $dir/RGSConnect
 mkdir -p /usr/local/share/applications/
-cp rgsconnect.desktop /usr/local/share/applications
+install -vm 644 rgsconnect.desktop /usr/local/share/applications
 
 echo
 echo Installation complete.

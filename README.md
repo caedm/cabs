@@ -42,6 +42,11 @@ our working machines that has the agent/client already installed.
 
 ## Release Notes
 
+### v01092017-1
+Bug Fixes:
+ 1. install linux client files with proper permissions
+ 2. fix various problems with the windows client installer
+
 ### v12142016-2
 
 Bug Fixes:
