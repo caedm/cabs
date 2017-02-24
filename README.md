@@ -47,6 +47,13 @@ our working machines that has the agent/client already installed.
 
 ## Release Notes
 
+### v02242017-1
+Bug fixes:
+ 1. Prevent the interface from trying to resolve BYU's LDAP server
+    when in debug mode, which caused it to crash when not connected to
+    BYU's network. (For use in production, `settings.py` will still
+    need to be edited heavily as it contains BYU-specific settings.)
+
 ### v01092017-1
 Bug Fixes:
  1. install linux client files with proper permissions
@@ -90,3 +97,7 @@ Oh, and one more thing: I don't think the install.exe file will work unless they
 uninstall the existing agent first (fixing that could be on the todo list). Running
 \Program Files\CABS\Agent\uninstall.exe should do it, but they should check the Agent
 folder and delete any files that uninstall.exe doesn't take care of.
+
+## Maintainers
+Jordan Whitehead (???-2015. Original author)
+Jacob O'Bryant (2015-2017)
