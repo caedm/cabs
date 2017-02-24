@@ -1,4 +1,4 @@
-insert into pools (name, reason, secondary) values ('main', '', 'secondary');
+insert into pools (name, reason, secondary) values ('main', '', 'secondary,other');
 insert into pools (name, reason) values ('secondary', '');
 insert into pools (name, reason) values ('other', '');
 insert into machines (name, machine, status, reason) values ('main', 'main1', '', '');

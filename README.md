@@ -17,10 +17,15 @@ They have been tested with Docker 1.12.3 and Python 2.7. Follow these steps to r
     will take a while for `control.py` to start all the docker containers needed to simulate
     the agents).
 
+### Monitoring
 To view the state of the simulated agents, start the CABS interface with
 `./interface/dev.sh`. After the django app is running, visit `localhost:8080` in a web
 browser. Log in with username "cabstest" and password "password". Click on the "Machines"
-tab. You can use `control.py` to manually simulate events such as a user requesting a
+tab. The page will auto-refresh every five minutes, but you can
+manually refresh more often to see updates immediately while testing.
+
+### Manual testing
+You can use `control.py` to manually simulate events such as a user requesting a
 machine through the cabs client, a user logging in to a machine, a machine shutting down,
 etc. Run `./control.py --help` for a list of commands.
 

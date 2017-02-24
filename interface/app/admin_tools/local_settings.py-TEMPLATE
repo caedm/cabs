@@ -1,0 +1,30 @@
+SECRET_KEY = 'your-key-here'
+ALLOWED_HOSTS = ['example.com']
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
+
+# Database
+# https://docs.djangoproject.com/en/1.7/ref/settings/#databases
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'test',
+
+            'USER': 'user',
+            'PASSWORD': 'pass',
+            'HOST': 'broker',
+            'PORT': '3306',
+
+    },
+    'cabs': {
+        'ENGINE':'django.db.backends.mysql',
+
+        'NAME': 'test',
+            'USER': 'user',
+            'PASSWORD': 'pass',
+            'HOST': 'broker',
+            'PORT': '3306',
+
+    }
+}

@@ -11,7 +11,7 @@ Name "RGSConnect"
 OutFile "install_rgsconnect-${VERSION}.exe"
 
 # The default installation directory
-InstallDir "C:\Program Files\CABS\Client"
+InstallDir "C:\Program Files\RGS_Connect\Client"
 
 # Registry key to check for directory (so if you install again, it will 
 # overwrite the old one automatically)

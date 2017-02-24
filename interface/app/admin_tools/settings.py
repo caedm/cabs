@@ -1,3 +1,9 @@
+# NOTE: This file contains BYU specific information. You will need to edit it before running in
+# production. However, it should work as-is for testing purposes (i.e. when run with
+# interface/dev.sh). When using DEBUG = False, you will need to copy the file
+# local_settings.py-TEMPLATE to local_settings.py and edit it accordingly.
+DEBUG = True
+
 try:
     from local_settings import *
 except ImportError as e:
@@ -67,8 +73,6 @@ def findServer(domain):
     if not server.startswith("ldap://") and not server.startswith("ldaps://"):
         server = "ldap://" + server
     return server
-
-AUTH_LDAP_SERVER_URI = findServer("AUTO.et.byu.edu")
 
 AUTH_LDAP_CONNECTION_OPTIONS = {
     ldap.OPT_DEBUG_LEVEL: 1,
@@ -182,6 +186,34 @@ except ImportError as e:
     pass
 
 if DEBUG:
+    SECRET_KEY = 'your-key-here'
+    ALLOWED_HOSTS = ['example.com']
+
+    # Database
+    # https://docs.djangoproject.com/en/1.7/ref/settings/#databases
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'test',
+
+                'USER': 'user',
+                'PASSWORD': 'pass',
+                'HOST': 'broker',
+                'PORT': '3306',
+
+        },
+        'cabs': {
+            'ENGINE':'django.db.backends.mysql',
+
+            'NAME': 'test',
+                'USER': 'user',
+                'PASSWORD': 'pass',
+                'HOST': 'broker',
+                'PORT': '3306',
+
+        }
+    }
+
     AUTHENTICATION_BACKENDS = (
         'django.contrib.auth.backends.ModelBackend',
     )
@@ -190,3 +222,6 @@ if DEBUG:
     CABS_LDAP_CAN_VIEW_GROUPS = [ ]
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
+else:
+    AUTH_LDAP_SERVER_URI = findServer("AUTO.et.byu.edu")
+
