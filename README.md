@@ -99,5 +99,5 @@ uninstall the existing agent first (fixing that could be on the todo list). Runn
 folder and delete any files that uninstall.exe doesn't take care of.
 
 ## Maintainers
-Jordan Whitehead (???-2015. Original author)
-Jacob O'Bryant (2015-2017)
+ - Jordan Whitehead (???-2015. Original author)
+ - Jacob O'Bryant (2015-2017)
