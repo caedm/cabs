@@ -434,11 +434,12 @@ class CommandHandler(LineOnlyReceiver):
     tell_agent:(restart|reboot):<hostname>
     autoit:(enable|disable):<hostname>
     ruok
+    lastchance
     """
 
-    commands = ('query', 'tell_agent', 'autoit', 'ruok', 'dump')
+    commands = ('query', 'tell_agent', 'autoit', 'lastchance', 'dump', 'ruok')
 
-    log_levels = {'debug': ['query', 'ruok', 'dump'],
+    log_levels = {'debug': ['query', 'lastchance', 'dump', 'ruok'],
                   'info':  ['tell_agent', 'autoit']}
 
     def lineReceived(self, line):
@@ -485,7 +486,8 @@ class CommandHandler(LineOnlyReceiver):
             str_response += ',1,' if line[3] is not None else ',0,'
             str_response += ','.join([str(x) for x in line[4:]])
             str_response += '\n'
-        self.transport.write(str_response)
+        self.transport.write("\n")
+        self.transport.write(str_response[:-1])
         self.transport.loseConnection()
 
     @defer.inlineCallbacks
@@ -504,6 +506,8 @@ class CommandHandler(LineOnlyReceiver):
 
         data = {line[0]: {key: convert(key, val) for key, val in zip(keys, line[1:])}
                          for line in response}
+        
+        self.transport.write("\n")
         self.transport.write(json.dumps(data))
         self.transport.loseConnection()
 
@@ -512,6 +516,7 @@ class CommandHandler(LineOnlyReceiver):
         result = yield dbpool.runQuery("SELECT deactivated,reason FROM machines WHERE machine = %s",
                                        (hostname,))
         if len(result) == 0:
+            self.transport.write("\n")
             self.transport.write("unknown machine: " + hostname)
             self.tranport.loseConnection()
             raise StopIteration
@@ -527,6 +532,7 @@ class CommandHandler(LineOnlyReceiver):
 
     def bad_command(self, command):
         logger.info("received bad command: '" + command + "'")
+        self.transport.write("\n")
         self.transport.write("unrecognized command: " + command)
         self.transport.loseConnection()
 
@@ -537,6 +543,7 @@ class CommandHandler(LineOnlyReceiver):
             s.connect((hostname, port))
         except socket.error:
             logger.warning("couldn't send command to " + hostname)
+            self.transport.write("\n")
             self.transport.write("Couldn't connect to {} on port {}.".format(hostname, port))
             self.transport.loseConnection()
             return
@@ -550,8 +557,27 @@ class CommandHandler(LineOnlyReceiver):
         s_wrapped.sendall(command + "\r\n")
 
     def ruok(self):
+        self.transport.write("\n")
         self.transport.write("imok\n")
         self.transport.loseConnection()
+
+
+    def lastchance(self): 
+        sqlcommand = "SELECT machines.machine, last_heartbeat, connecttime FROM machines " + \
+                "LEFT OUTER JOIN current ON machines.machine = current.machine " + \
+                'WHERE deactivated=1 AND reason="autoit";'
+        response = dbpool.runQuery(sqlcommand)
+        response.addCallback(self.respond_lastchance)
+
+    def respond_lastchance(self, response):
+        str_response = ""
+        for line in response:
+            str_response += ",".join([str(x) for x in line[:]])
+            str_response += "\n"
+        self.transport.write("\n")
+        self.transport.write(str_response[:-1])
+        self.transport.loseConnection()
+
 
 @defer.inlineCallbacks
 def checkMachines():
