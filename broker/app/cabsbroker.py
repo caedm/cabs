@@ -23,10 +23,10 @@ import random
 import os
 import socket
 import ssl
-import re
 import json
+import re
 from argparse import ArgumentParser
-from time import sleep
+import time
 from os.path import dirname, realpath, join
 
 blacklist = set()
@@ -432,7 +432,7 @@ class CommandHandler(LineOnlyReceiver):
     """Recognized commands:
     query[:verbose]
     tell_agent:(restart|reboot):<hostname>
-    autoit:(enable|disable):<hostname>
+    autoit:(enable|disable0|disable1|disable2|disable3):<hostname>
     ruok
     lastchance
     """
@@ -511,6 +511,7 @@ class CommandHandler(LineOnlyReceiver):
         self.transport.write(json.dumps(data))
         self.transport.loseConnection()
 
+
     @defer.inlineCallbacks
     def autoit(self, action, hostname):
         result = yield dbpool.runQuery("SELECT deactivated,reason FROM machines WHERE machine = %s",
@@ -521,14 +522,17 @@ class CommandHandler(LineOnlyReceiver):
             self.tranport.loseConnection()
             raise StopIteration
         deactivated, reason = result[0]
-        if action == "enable" and reason == "autoit":
+        if action == "enable":
             dbpool.runQuery("UPDATE machines SET deactivated = FALSE, reason = NULL WHERE machine = %s",
                             (hostname,))
-        elif action == "disable" and not deactivated:
-            dbpool.runQuery("UPDATE machines SET deactivated = TRUE, reason = 'autoit' WHERE machine = %s",
-                            (hostname,))
+        elif re.match(re.compile("disable[0-9]"), action):
+            print("disabling machine (" + action  + ")")
+            reason = "'autoit " + action[-1:] + " " + time.strftime("%m/%d/%Y") + "'"
+            dbpool.runQuery("UPDATE machines SET deactivated = TRUE, reason = " + \
+                    reason + " WHERE machine = %s", (hostname,))
         else:
             self.bad_command(":".join(("autoit", action, hostname)))
+
 
     def bad_command(self, command):
         logger.info("received bad command: '" + command + "'")
@@ -563,21 +567,23 @@ class CommandHandler(LineOnlyReceiver):
 
 
     def lastchance(self): 
-        sqlcommand = "SELECT machines.machine, last_heartbeat, connecttime FROM machines " + \
-                "LEFT OUTER JOIN current ON machines.machine = current.machine " + \
-                'WHERE deactivated=1 AND reason="autoit";'
+        sqlcommand = "SELECT machines.machine FROM machines LEFT OUTER JOIN current " + \
+                    "ON machines.machine = current.machine " + \
+                    "WHERE ((last_heartbeat <= CURDATE() - INTERVAL 1 DAY AND status IS NULL) " + \
+                    "OR (reason LIKE 'autoit%' AND (reason NOT LIKE 'autoit 0' OR user IS NULL))) " + \
+                    "AND (reason IS NULL OR reason LIKE 'autoit%');"
         response = dbpool.runQuery(sqlcommand)
         response.addCallback(self.respond_lastchance)
 
-    def respond_lastchance(self, response):
+    #Gives a list of deactivated machines that have a heartbeat within the past 24 hours
+    def respond_lastchance(self, response): 
         str_response = ""
         for line in response:
-            str_response += ",".join([str(x) for x in line[:]])
+            str_response += line[0]
             str_response += "\n"
         self.transport.write("\n")
         self.transport.write(str_response[:-1])
         self.transport.loseConnection()
-
 
 @defer.inlineCallbacks
 def checkMachines():
