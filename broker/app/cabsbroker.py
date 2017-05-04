@@ -434,12 +434,11 @@ class CommandHandler(LineOnlyReceiver):
     tell_agent:(restart|reboot):<hostname>
     autoit:(enable|disable0|disable1|disable2|disable3):<hostname>
     ruok
-    lastchance
     """
 
-    commands = ('query', 'tell_agent', 'autoit', 'lastchance', 'dump', 'ruok')
+    commands = ('query', 'tell_agent', 'autoit', 'dump', 'ruok')
 
-    log_levels = {'debug': ['query', 'lastchance', 'dump', 'ruok'],
+    log_levels = {'debug': ['query', 'dump', 'ruok'],
                   'info':  ['tell_agent', 'autoit']}
 
     def lineReceived(self, line):
@@ -563,26 +562,6 @@ class CommandHandler(LineOnlyReceiver):
     def ruok(self):
         self.transport.write("\n")
         self.transport.write("imok\n")
-        self.transport.loseConnection()
-
-
-    def lastchance(self): 
-        sqlcommand = "SELECT machines.machine FROM machines LEFT OUTER JOIN current " + \
-                    "ON machines.machine = current.machine " + \
-                    "WHERE ((last_heartbeat <= CURDATE() - INTERVAL 1 DAY AND status IS NULL) " + \
-                    "OR (reason LIKE 'autoit%' AND (reason NOT LIKE 'autoit 0' OR user IS NULL))) " + \
-                    "AND (reason IS NULL OR reason LIKE 'autoit%');"
-        response = dbpool.runQuery(sqlcommand)
-        response.addCallback(self.respond_lastchance)
-
-    #Gives a list of deactivated machines that have a heartbeat within the past 24 hours
-    def respond_lastchance(self, response): 
-        str_response = ""
-        for line in response:
-            str_response += line[0]
-            str_response += "\n"
-        self.transport.write("\n")
-        self.transport.write(str_response[:-1])
         self.transport.loseConnection()
 
 @defer.inlineCallbacks
