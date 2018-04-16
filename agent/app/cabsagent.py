@@ -3,31 +3,31 @@
 
 # Workaround until a bugfix in pyinstaller gets released on pypi.
 # See https://github.com/pyinstaller/pyinstaller/commit/f788dec36b8d55f4518881be9f4188ad865306ec
-import ctypes.util
-
 import socket, ssl
 import sys
 import os
 import subprocess
-from subprocess import check_output, check_call, CalledProcessError
+from subprocess import check_output, check_call
 import re
 import signal
 import traceback
 from sched import scheduler
 from time import time, sleep
 from threading import Thread, Timer
+import threading
 
 from twisted.internet.protocol import Factory, Protocol
 from twisted.internet.ssl import Certificate, PrivateCertificate
 from twisted.internet import reactor, endpoints
 from twisted.protocols.basic import LineOnlyReceiver
 from argparse import ArgumentParser
-from os.path import isfile, isabs, basename, join
-import logging
+from os.path import isfile
 
-log = logging.getLogger()
-log.setLevel(logging.WARNING)  # only used until we read from the config file
-log.addHandler(logging.StreamHandler())
+try:
+    import psutil
+except:
+    print("warning: couldn't import psutil. Process monitoring not available.")
+    psutil = None
 
 ERR_GET_STATUS = -1
 STATUS_PS_NOT_FOUND = 0
@@ -35,30 +35,49 @@ STATUS_PS_NOT_RUNNING = 1
 STATUS_PS_NOT_CONNECTED = 2
 STATUS_PS_OK = 3
 
+#global heartbeat_pid
 requestStop = False
 
-application_path = os.path.dirname(os.path.abspath(
-                   sys.executable if getattr(sys, 'frozen', False) else __file__))
-default_config = os.path.join(application_path, 'cabsagent.conf')
 settings = { "Host_Addr":'broker',
              "Agent_Port":18182,
              "Command_Port":18185,
-             "Cert_Dir":application_path,
+             "Cert_Dir":"/etc/ssl/certs",
              "Broker_Cert":None,
              "Agent_Cert":None,
              "Agent_Priv_Key":None,
              "Interval":1,
              "Process_Listen":None,
-             "Hostname":None,
-             "Checks_Dir":'checks',
-             "Check_Scripts": "",
-             "Log_Level": "INFO"}
-DEBUG = False
+             "Hostname":None }
+checks = []
+
+def ps_check():
+    # get the status of a process that matches settings.get("Process_Listen")
+    # then check to make sure it has at least one listening conection on windows, you can't
+    # search processes by yourself, so Popen "tasklist" to try to find the pid for the name
+    # then use psutil to view the connections associated with that
+    if not psutil:
+        return "Okay"
+
+    ps_name = settings.get("Process_Listen")
+    process = find_process()
+    if process is None:
+        return ps_name + " not found"
+    if not process.is_running():
+        return ps_name + " not running"
+    for conn in process.connections():
+        if conn.status in [psutil.CONN_ESTABLISHED, psutil.CONN_SYN_SENT,
+                psutil.CONN_SYN_RECV, psutil.CONN_LISTEN]:
+            return "Okay"
+    return ps_name + " not connected"
 
 if os.name == "posix":
     def user_list():
         p = subprocess.Popen(["who"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, err = p.communicate()
+        if sys.version_info[0] < 3: #Make sure it is python2/3 compatible
+            output = output.encode('utf-8')
+        else:
+            output = str(output, 'utf-8')
         lines = output.split('\n')
         userlist = set()
         for line in lines:
@@ -68,49 +87,96 @@ if os.name == "posix":
                 pass
         return userlist
 
+    def find_process():
+        #assume a platform where we can just search with psutil
+        for ps in psutil.process_iter():
+            try:
+                if ps.name() == settings.get("Process_Listen"):
+                    return ps
+            except:
+                #we probably dont have permissions to access the ps.name()
+                pass
+
     def reboot():
-        log.info("rebooting")
         subprocess.call(["shutdown", "-r", "now"])
 
     def restart():
         subprocess.call(["init", "2"])
         Timer(10, subprocess.call, (["init", "5"],)).start()
+        #subprocess.call(["init", "5"])
+
+
+    def win_info(user, display):
+        if argv.debug:
+            template = ('0x01e00003 -1 0    {}  1024 24   rgsl-07 Top Expanded Edge Panel\n'
+                    '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
+            return template.format('-48' if isfile('/tmp/no_panel') else '0')
+        else:
+            return check_output("script -c 'DISPLAY={} sudo -u {} wmctrl -lG' /dev/null"
+                    "| grep -v Script".format(display, user), shell=True)
+
+            # We can only check if there's a panel when someone is logged in. If the user logs out, we
+    # want to remember that there wasn't a panel.
+    no_panel = False
+    def panel_check():
+        global no_panel
+        print('running panel check')
+        graphical_users = [line.split() for line in check_output("who").split(b'\n')
+                if b" :0" in line]
+        if graphical_users:
+            user = graphical_users[0][0]
+            display = graphical_users[0][1]
+            info = win_info(user, display).split('\n')
+            y_coords = [line.split()[3] for line in info if "Top Expanded Edge Panel" in line]
+            no_panel = any(int(coord) < 0 for coord in y_coords)
+        elif no_panel and not user_list():
+            reboot()
+
+        return "no_panel" if no_panel else "Okay"
+
+    checks.append(panel_check)
+
 else:
     assert os.name == "nt"
-
-    # Fix for another pyinstaller problem.
-    import _cffi_backend
-
+    #import win32service
+    #import win32event
+    #import servicemanager
     import win32api
     import win32serviceutil
+    from getpass import getuser
 
     def user_list():
-        try:
-            with open(os.devnull, 'r+') as devnull:
-                output = check_output(['query.exe', 'user'],
-                                      stdin=devnull, stderr=devnull)
-        except CalledProcessError as e:
-            # query.exe returns 1 after successful execution. It was obviously written by a
-            # Roman unfamiliar with the concept of 0.
-            output = e.output
-            
-        userlist = set()
-        for i in range(1,len(output.split('\r\n'))-1):
-            user = output.split('\r\n')[i].split()[0]
-            if user.startswith(">"):
-                user = user[1:]
-            userlist.add(user)
-        return userlist
+        return [getuser()]
+
+    def find_process():
+        p = psutil.Popen("tasklist", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
+        out, err = p.communicate()
+        l_start = out.find(settings.get("Process_Listen"))
+        l_end = out.find('\n', l_start)
+        m = re.search(r"\d+", out[l_start: l_end])
+        if m is None:
+            return None
+        return  psutil.Process(int(m.group(0)))
+
+    #def heartbeat_loop():
+    #    if len(sys.argv) == 1:
+    #        servicemanager.Initialize()
+    #        servicemanager.PrepareToHostSingle(AgentService)
+    #        servicemanager.StartServiceCtrlDispatcher()
+    #    else:
+    #        win32serviceutil.HandleCommandLine(AgentService)
 
     def restart():
-        log.info("restarting")
+        print("restarting")
         if settings["Process_Listen"] is None:
-            log.warning("no process to restart")
+            print("no process to restart")
             return
+        #print("win32serviceutil.RestartService({})".format(settings["Process_Listen"]))
         win32serviceutil.RestartService(settings["Process_Listen"].rstrip(".exe"))
 
     def reboot():
-        log.info("rebooting")
+        print("rebooting")
         win32api.InitiateSystemShutdown(None, None, 0, 1, 1)
 
     def stop():
@@ -119,68 +185,40 @@ else:
 
 def heartbeat_loop():
     s = scheduler(time, sleep)
-    log.debug("Starting. Pulsing every {0} seconds.".format(settings.get("Interval")))
-    while not requestStop:
+    #read config for time interval, in seconds
+    print("Starting heartbeat. Pulsing every {0} seconds.".format(settings.get("Interval")))
+    while True:
+        if requestStop:
+            break
         s.enter(int(settings.get("Interval")), 1, heartbeat, ())
         s.run()
 
 def heartbeat():
+    content = "spr:{}:{}{}\r\n".format(getStatus(), settings["Hostname"],
+            "".join(':' + user for user in user_list()))
     try:
-        log.debug("doing a heartbeat")
-        content = "spr:{}:{}{}\r\n".format(getStatus(), settings["Hostname"],
-                "".join(':' + user for user in user_list()))
-        log.debug("content: {}".format(content))
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((settings.get("Host_Addr"), int(settings.get("Agent_Port"))))
         if settings.get("Broker_Cert") is None:
             s_wrapped = s 
         else:
             s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=settings["Broker_Cert"], \
-                        ssl_version=ssl.PROTOCOL_SSLv23)
-        
-        s_wrapped.sendall(content)
-        log.info("Told server " + content )
-    except Exception as e:
-        log.error('there was an error')
-        log.exception(str(e))
+                    ssl_version=ssl.PROTOCOL_SSLv23)
 
-def run_check(script):
-    scriptfile = join(settings["Checks_Dir"], script[0])
-    args = script[1:]
-    cmdlist = [scriptfile] + args
-
-    if os.name == 'nt':
-        # If we want need different kinds of scripts, add more if clauses here. Using
-        # shell=True for check_output would figure out the correct interpreter automatically,
-        # but doing that (besides being ugly) makes check_output hang when called on Windows
-        # from a compiled (with pyinstaller) service (cabsagent.exe). It's weird. If there's
-        # some windows system call we can use to get the default interpreter for a given
-        # extension, that would be the best thing to do.
-        if scriptfile.endswith('.py'):
-            cmdlist = ['python'] + cmdlist
-
-    log.debug("running {} from {}".format(cmdlist, os.getcwd()))
-    try:
-        # Windows calls the program without stdin attached. If we don't specify devnull as
-        # stdin, the program crashes because it tries to read from stdin but doesn't have
-        # permission.
-        with open(os.devnull, 'r+') as devnull:
-            return check_output(cmdlist, stdin=devnull, stderr=devnull)
-    except CalledProcessError as e:
-        log.error("Couldn't run check {}: {}".format(basename(scriptfile), e))
-        return "Okay"
+            if sys.version_info[0] < 3: #Make sure it is python2/3 compatible
+                s_wrapped.sendall(content)
+            else:
+                s_wrapped.sendall(bytes(content, 'utf-8'))
+        print("Told server " + content)
+    except:
+        traceback.print_exc()
 
 def getStatus():
-    if DEBUG and isfile('/tmp/oldstatus'):
+    if argv.debug and isfile('/tmp/oldstatus'):
         return "rgsender3"
 
-    # ugly hack for windows. make sure we're in the right directory.
-    olddir = os.getcwd()
-    os.chdir(application_path)
-    problems = [result for result in [run_check(script).strip()
-                                      for script in settings["Check_Scripts"]]
-                       if result != "Okay"]
-    os.chdir(olddir)
+    problems = [result for result in [func() for func in checks]
+            if result != "Okay"]
     return ",".join(problems) if problems else "Okay"
 
 class CommandHandler(LineOnlyReceiver):
@@ -190,7 +228,7 @@ class CommandHandler(LineOnlyReceiver):
     """
     def lineReceived(self, line):
         command = line.strip()
-        log.info("received command: " + command)
+        print("received command: " + command)
         if command == "restart":
             restart()
         elif command == "reboot":
@@ -209,9 +247,9 @@ def start_ssl_cmd_server():
     factory = Factory.forProtocol(CommandHandler)
     reactor.listenSSL(int(settings.get("Command_Port")), factory, certificate.options(authority))
 
-def readConfigFile(config):
-    if isfile(config):
-        with open(config, 'r') as f:
+def readConfigFile():
+    if isfile(argv.config):
+        with open(argv.config, 'r') as f:
             for line in f:
                 line = line.strip()
                 if line.startswith('#') or not line:
@@ -219,10 +257,10 @@ def readConfigFile(config):
                 try:
                     key, val = [word.strip() for word in line.split(':', 1)]
                 except ValueError:
-                    log.warning("Warning: unrecognized setting: " + line)
+                    print("Warning: unrecognized setting: " + line)
                     continue
                 if key not in settings:
-                    log.warning("Warning: unrecognized setting: " + line)
+                    print("Warning: unrecognized setting: " + line)
                     continue
                 settings[key] = val
             f.close()
@@ -236,41 +274,63 @@ def readConfigFile(config):
     if settings["Hostname"] is None:
         #If we want a fqdn we can use socket.gethostbyaddr(socket.gethostname())[0]
         settings["Hostname"] = socket.gethostname()
-    
-    settings["Check_Scripts"] = [line.split(',') for line in settings["Check_Scripts"].split()]
 
-    if settings['Log_Level'] not in ('CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'):
-        log.warning('invalid value for Log_Level, using "WARNING" instead')
-        settings['Log_Level'] = 'WARNING'
+def stop():
+    requestStop = True
+    reactor.callFromThread(reactor.stop)
 
-def start(config=default_config):
-    if os.name == 'nt':
-        handler = logging.FileHandler(join(os.getenv('APPDATA'), 'cabsagent.log'))
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        log.addHandler(handler)
-
-    readConfigFile(config)
-    log.setLevel(getattr(logging, settings['Log_Level']))
-    log.info("starting up")
-    log.debug("CWD is {}".format(os.getcwd()))
-
-    t = Thread(target=heartbeat_loop)
-    t.daemon = True
+def startHeartbeat():
+    readConfigFile()
+    global checks
+    if settings['Process_Listen'] and psutil:
+        checks.append(ps_check)
+    t = Thread(target=heartbeat_loop, name="heartbeat")
     t.start()
+
+def checkHeartbeat():
+    for thread in threading.enumerate():
+        if thread.getName() == "heartbeat":
+            print("Heartbeat is still running")
+            return
+    print("Heartbeat thread stopped, restarting heartbeat")
+    startHeartbeat()
+        
+def heartbeatSupervisor():
+    s = scheduler(time, sleep)
+    threadCountInterval = 20
+    print("Starting heartbeat supervisor. Checking every {0} seconds.".format(threadCountInterval))
+    while True:
+        if requestStop:
+            break
+        s.enter(threadCountInterval, 1, checkHeartbeat, ())
+        s.run()
+
+def startHeartbeatSupervisor():
+    t_count = Thread(target=heartbeatSupervisor, name="supervisor")
+    t_count.daemon = True
+    t_count.start()
+
+def start():
+    application_path = os.path.dirname(os.path.abspath(
+        sys.executable if getattr(sys, 'frozen', False) else __file__))
+    default_config = os.path.join(application_path, 'cabsagent.conf')
+    global argv
+    parser = ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-f', '--config', default=default_config)
+    argv = parser.parse_args()
+
+    startHeartbeat()
+    startHeartbeatSupervisor()
+
 
     if settings.get("Agent_Priv_Key") is None:
         endpoint = endpoints.TCP4ServerEndpoint(reactor, int(settings.get("Command_Port")))
         endpoint.listen(Factory.forProtocol(CommandHandler))
     else:
         start_ssl_cmd_server()
-    log.debug("running the reactor")
+    print("Running the reactor")
     reactor.run()
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('-f', '--config', default=default_config)
-    argv = parser.parse_args()
-    DEBUG = argv.debug
-    start(argv.config)
+    start()
