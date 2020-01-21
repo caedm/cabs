@@ -10,9 +10,16 @@ Connection Automation/Brokerage System
 - Setup settings are stored in a configuration file.
 
 ## Installation
-Copy the `app/` directory to the machine and run `app/install.sh`. This will install the broker
-to `/opt/cabsbroker/`. `install.sh` will output additional instructions for configuration after
-installation.
+Install Debian 8
+run `apt install sudo git vim python-pip libmysqlclient-dev libpython2.7-dev libldap2-dev libsasl2-dev mysql-server mysql-client`
+give sudo privileges to your user with visudo
+run `git clone https://github.com/caedm/cabs`
+navigate to `cabs/broker/app`
+run `sudo ./install.sh`
+add the credentials for my mysql server to `/opt/cabsbroker/cabsbroker.conf`
+navigate to `/opt/cabsbroker`
+run `./setupDatabase.py`
+start with systemctl start/enable cabsbroker
 
 You will need to add an entry to the broker's database for each machine to be
 managed. This can be done from the Interface after it is installed. It can also
