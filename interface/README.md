@@ -1,12 +1,12 @@
 # CABS Interface
 Connection Automation/Brokerage System
 
-##Overview
+## Overview
 The Interface is a Django app used to monitor and configure the Broker. It
 presents real-time information about what machines are online, what users are
 logged in, etc.
 
-##Installation
+## Installation
 The interface has been tested on a Debian 8 server. We have it installed on the
 same machine as the Broker.
 
