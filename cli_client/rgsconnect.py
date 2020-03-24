@@ -315,7 +315,7 @@ if __name__ == "__main__":
         print("")
         cl_pool = int(raw_input("Please enter a pool number: "))
         cl_machine = getMachine(cl_user, cl_pass, pools_array[cl_pool][0], settings["Host_Addr"], int(settings["Client_Port"]))
-        print(cl_machine)
+        print("Reservation established for " + cl_machine)
         resolutions = []
         resolutions.append(("720p",1280,720))
         resolutions.append(("1080p",1920,1080))
