@@ -4,5 +4,6 @@ all:
 	cp CABS_client.conf build
 	cp cert.pem build
 	cp postextraction.sh build
-	makeself --nox11 --nowait ./build rgsconnect_installer.sh "RGS Connect" ./postextraction.sh
+	cp rgs.sh build
+	makeself --nox11 --nowait --needroot ./build rgsconnect_installer.sh "RGS Connect" ./postextraction.sh
 	rm -rf build
