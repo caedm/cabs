@@ -1,6 +1,7 @@
 all:
 	mkdir -p build
 	cp rgsconnect.py build
+	cp rgsconnect_legacy.py build
 	cp CABS_client.conf build
 	cp cert.pem build
 	cp postextraction.sh build

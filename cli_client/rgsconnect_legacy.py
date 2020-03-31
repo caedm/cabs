@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python2
 import socket, ssl
 import subprocess
 import sys
@@ -12,7 +12,6 @@ from os.path import dirname, join, abspath
 #import wx
 import json
 from argparse import ArgumentParser
-encoding = 'utf-8'
 
 if getattr(sys, 'frozen', False):
     __file__ = sys.executable
@@ -108,10 +107,10 @@ def getPools(user, password, host, port, retry=0):
         ssl_cert = os.path.dirname(os.path.abspath(__file__)) + "/" + settings.get("SSL_Cert")
         s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
 
-    s_wrapped.sendall(content.encode())
+    s_wrapped.sendall(content)
     pools = ""
     while True:
-        chunk = s_wrapped.recv(1024).decode()
+        chunk = s_wrapped.recv(1024)
         pools += chunk
         if chunk == '':
             break;
@@ -140,10 +139,10 @@ def getMachine(user, password, pool, host, port, retry=0):
         ssl_cert = os.path.dirname(os.path.abspath(__file__)) + "/" + settings.get("SSL_Cert")
         s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
 
-    s_wrapped.sendall(content.encode())
+    s_wrapped.sendall(content)
     machine = ""
     while True:
-        chunk = s_wrapped.recv(1024).decode()
+        chunk = s_wrapped.recv(1024)
         machine += chunk
         if chunk == '':
             break;
@@ -302,7 +301,7 @@ if __name__ == "__main__":
 
     if readConfigFile():
         print("Connecting to RGS Connect...")
-        cl_user = input("CAEDM User Name: ")
+        cl_user = raw_input("CAEDM User Name: ")
         cl_pass = getpass.getpass()
         #pools=getPools(cl_user,cl_pass,settings["Host_Addr"],18181)
         pools=getPools(cl_user,cl_pass,settings["Host_Addr"], int(settings["Client_Port"]))
@@ -314,7 +313,7 @@ if __name__ == "__main__":
         for i in range(len(pools_array)):
             print(str(i) + ": " + pools_array[i][0] + ": " + pools_array[i][1])
         print("")
-        cl_pool = int(input("Please enter a pool number: "))
+        cl_pool = int(raw_input("Please enter a pool number: "))
         cl_machine = getMachine(cl_user, cl_pass, pools_array[cl_pool][0], settings["Host_Addr"], int(settings["Client_Port"]))
         print("Reservation established for " + cl_machine)
         resolutions = []
@@ -326,7 +325,7 @@ if __name__ == "__main__":
         #for i in range(len(resolutions)):
         #    print(str(i) + ": " + resolutions[i][0])
         #print("")
-        #cl_resolution = int(input("Please choose a screen resolution: "))
+        #cl_resolution = int(raw_input("Please choose a screen resolution: "))
         #it seems to be ignoring the resolution anyways, so we won't bother asking.
         cl_resolution = 1
         rgscommand = [settings["RGS_Location"], '-nosplash', '-Rgreceiver.Session.0.IsConnectOnStartup=1', '-Rgreceiver.Session.0.Hostname=' + cl_machine + '.et.byu.edu', '-Rgreceiver.Session.0.Username=' + cl_user, '-Rgreceiver.Session.0.Password=' + cl_pass, '-Rgreceiver.Session.0.PasswordFormat=Clear', '-Rgreceiver.Session.0.VirtualDisplay.PreferredResolutionWidth=' + str(resolutions[cl_resolution][1]), '-Rgreceiver.Session.0.VirtualDisplay.PreferredResolutionHeight=' + str(resolutions[cl_resolution][2]), '-Rgreceiver.ImageCodec.Quality=75', '-Rgreceiver.IsBordersEnabled=1', '-Rgreceiver.IsSnapEnabled=0', '-Rgreceiver.Audio.IsEnabled=1', '-Rgreceiver.Audio.IsInStereo=1', '-Rgreceiver.Audio.Quality=2', '-Rgreceiver.Mic.IsEnabled=1', '-Rgreceiver.Hotkeys.IsKeyRepeatEnabled=0', '-Rgreceiver.Clipboard.IsEnabled=1', '-Rgreceiver.Usb.IsEnabled=1', '-Rgreceiver.Network.Timeout.Dialog=60000', '-Rgsender.IsReconnectOnConsoleDisconnectEnabled=0']

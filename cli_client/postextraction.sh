@@ -12,6 +12,8 @@ chmod a+rx "$DESTINATION"
 # Copy files to destination
 cp rgsconnect.py "$DESTINATION"
 chmod a+rx "$DESTINATION/rgsconnect.py"
+cp rgsconnect_legacy.py "$DESTINATION"
+chmod a+rx "$DESTINATION/rgsconnect_legacy.py"
 cp cert.pem "$DESTINATION"
 chmod a+r "$DESTINATION/cert.pem"
 cp CABS_client.conf "$DESTINATION"
