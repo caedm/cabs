@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 ## CABS_Server.py
 # This is the webserver that is at the center of the CABS system.
