@@ -8,7 +8,7 @@ fi
 DIR=/opt/cabsbroker
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 mkdir -p $DIR
 install -v cabsbroker.py $DIR
 install -v setupDatabase.py $DIR
