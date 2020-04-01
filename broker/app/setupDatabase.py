@@ -4,7 +4,7 @@
 #Then the script will attempt to connect to the database and create the needed tables for CABS
 
 import os
-import MySQLdb
+import mysql.connector
 
 settings = {}
 
@@ -41,11 +41,11 @@ def main():
     #check dbname ?
 
     try:
-        db = MySQLdb.connect(host=dbhost, port=dbport, user=dbuser, passwd=dbpass, db=dbname)
+        db = mysql.connector.connect(host=dbhost, port=dbport, user=dbuser, password=dbpass, db=dbname)
         cursor = db.cursor()
     except:
         try:
-            db = MySQLdb.connect(host=dbhost, port=dbport, user=dbuser, passwd=dbpass)
+            db = mysql.connector.connect(host=dbhost, port=dbport, user=dbuser, passwd=dbpass)
             cursor = db.cursor()
             cursor.execute("CREATE DATABASE IF NOT EXISTS " + dbname)
             cursor.execute("USE " + dbname)
