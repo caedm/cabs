@@ -20,6 +20,10 @@ cp CABS_client.conf "$DESTINATION"
 chmod a+r "$DESTINATION/CABS_client.conf"
 
 # For MacOS
+mkdir -p /usr/local/bin
+chmod a+rx /usr
+chmod a+rx /usr/local
+chmod a+rx /usr/local/bin
 cp rgs.sh /usr/local/bin/rgs
 chmod a+rx /usr/local/bin/rgs
 
