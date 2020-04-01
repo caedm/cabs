@@ -1,5 +1,5 @@
 Twisted
-MySQL-python
+mysql-connector-python
 python-ldap
 service-identity
 
