@@ -15,7 +15,7 @@ from twisted.enterprise import adbapi
 from twisted.names import client
 from twisted.python import log
 
-from MySQLdb import IntegrityError
+from mysql.connector import IntegrityError
 import ldap
 import sys
 import logging
