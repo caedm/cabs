@@ -751,7 +751,7 @@ if __name__ == "__main__":
     #create database pool
     global dbpool
     dbpool = adbapi.ConnectionPool(
-            "MySQLdb",
+            "mysql.connector",
             db=settings.get("Database_Name"),
             port=int(settings.get("Database_Port")),
             user=settings.get("Database_Usr"),
