@@ -634,10 +634,10 @@ def readConfigFile():
             try:
                 key, val = [word.strip() for word in line.split(':', 1)]
             except ValueError:
-                print "Warning: unrecognized setting: " + line
+                print("Warning: unrecognized setting: " + line)
                 continue
             if key not in settings:
-                print "Warning: unrecognized setting: " + line
+                print("Warning: unrecognized setting: " + line)
                 continue
             if val == "None":
                 val == None
