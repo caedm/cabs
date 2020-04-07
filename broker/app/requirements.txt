@@ -1,5 +1,5 @@
-Twisted
-pymysql
-python-ldap
-service-identity
+Twisted==20.3.0
+pymysql==0.9.3
+python-ldap==3.2.0
+service-identity==18.1.0
 
