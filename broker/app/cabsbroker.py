@@ -15,7 +15,7 @@ from twisted.enterprise import adbapi
 from twisted.names import client
 from twisted.python import log
 
-from mysql.connector import IntegrityError
+from pymysql import IntegrityError
 import ldap
 import sys
 import logging
@@ -670,7 +670,7 @@ def readDatabaseSettings():
     cursor = con.cursor()
     querystring = "UPDATE settings SET applied = True"
     cursor.execute(querystring)
-    data = cursor.fetchall()
+    #data = cursor.fetchall()
     cursor.close()
     con.commit()
     dbpool.disconnect(con)
@@ -751,7 +751,7 @@ if __name__ == "__main__":
     #create database pool
     global dbpool
     dbpool = adbapi.ConnectionPool(
-            "mysql.connector",
+            "pymysql",
             db=settings.get("Database_Name"),
             port=int(settings.get("Database_Port")),
             user=settings.get("Database_Usr"),
