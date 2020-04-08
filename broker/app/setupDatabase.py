@@ -50,7 +50,7 @@ def main():
             cursor.execute("CREATE DATABASE IF NOT EXISTS " + dbname)
             cursor.execute("USE " + dbname)
         except:
-            print "Could not connect to MySQL server.\nMake sure that the MySQL server is installed and {0} is a user with proper permissions and password.".format(dbuser)
+            print("Could not connect to MySQL server.\nMake sure that the MySQL server is installed and {0} is a user with proper permissions and password.".format(dbuser))
             raise SystemExit(1)
 
     operations = ["CREATE TABLE IF NOT EXISTS machines (name VARCHAR(32) NOT NULL, machine VARCHAR(32) PRIMARY KEY, active TINYINT(1) NOT NULL, status VARCHAR(64), last_heartbeat TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, deactivated TINYINT(1) NOT NULL, reason VARCHAR(120))",
