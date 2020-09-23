@@ -200,7 +200,8 @@ def heartbeat():
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((settings.get("Host_Addr"), int(settings.get("Agent_Port"))))
         if settings.get("Broker_Cert") is None:
-            s_wrapped = s 
+            s_wrapped = s
+            s_wrapped.sendall(content.encode()) 
         else:
             s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=settings["Broker_Cert"], \
                     ssl_version=ssl.PROTOCOL_SSLv23)
