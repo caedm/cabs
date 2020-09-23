@@ -94,6 +94,10 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
         #types of reports = status report (sr) and status process report (spr)
         # line: "sr:<hostname>:[user1]:[user2]:[...]
         #       "spr:<proc_status>:<hostname>:[user1]:[user2]:[...]
+        try:
+            line = line.decode("utf-8")
+        except:
+            pass
         report = line.split(':')
         reportType = report[0]
         procStatus = None
@@ -106,6 +110,7 @@ class HandleAgent(LineOnlyReceiver, TimeoutMixin):
             return
         self.updateMachine(host, procStatus)
         self.updateCurrent(host, users)
+
 
     @defer.inlineCallbacks
     def updateMachine(self, host, procStatus):
@@ -238,7 +243,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             #check version
             if version < settings.get('RGS_Ver_Min'):
                 self.transport.write("Err:Sorry, your RGS reciever is out of date, " + \
-                        "it should be at least {0}".format(settings.get('RGS_Ver_Min')))
+                        "it should be at least {0}".format(settings.get('RGS_Ver_Min')).encode('utf-8'))
                 self.transport.loseConnection()
                 return
         pools = yield self.available_pools(user, password)
@@ -271,11 +276,11 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             self.send_machine(machine)
 
     def send_error(self, message):
-        self.transport.write("Err:" + message)
+        self.transport.write(("Err:" + message).encode('utf-8'))
         self.transport.loseConnection()
 
     def send_machine(self, machine):
-        self.transport.write(machine)
+        self.transport.write(machine.encode('utf-8'))
         self.transport.loseConnection()
 
     @defer.inlineCallbacks
@@ -323,51 +328,52 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             pool, description = item
             if description == None:
                 description = 'None'
-            self.transport.write(str((pool, description)))
-            self.transport.write("\n")
+            self.transport.write(str((pool, description)).encode('utf-8'))
+            self.transport.write("\n".encode('utf-8'))
         self.transport.loseConnection()
 
     def user_groups(self, user, password):
         groups = []
 
         Server = settings.get("Auth_Server")
-        if Server.startswith("AUTO"):
-            raise ReferenceError("No AUTO Authentication Server yet")
-        if not Server.startswith("ldap"):
-            Server = "ldap://" + Server
-        DN = settings.get("Auth_Prefix") + user + settings.get("Auth_Postfix")
-        Base = settings.get("Auth_Base")
-        Scope = ldap.SCOPE_SUBTREE
-        Attrs = [ settings.get("Auth_Grp_Attr") ]
-        UsrAttr = settings.get("Auth_Usr_Attr")
-
-        if settings.get("Auth_Secure") == 'True':
-            if settings.get("Auth_Cert") != 'None' and settings.get("Auth_Cert") is not None:
-                ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, settings.get("Auth_Cert"))
-                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
-            else:
-                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-        l = ldap.initialize(Server)
-        l.set_option(ldap.OPT_REFERRALS,0)
-        l.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
-        if settings.get("Auth_Secure") == 'True':
-            l.start_tls_s()
-        l.bind_s(DN, password, ldap.AUTH_SIMPLE)
-        r = l.search(Base, Scope, UsrAttr + '=' + user, Attrs)
-        result = l.result(r,9)
+        if Server != "":
+            if Server.startswith("AUTO"):
+                raise ReferenceError("No AUTO Authentication Server yet")
+            if not Server.startswith("ldap"):
+                Server = "ldap://" + Server
+            DN = settings.get("Auth_Prefix") + user + settings.get("Auth_Postfix")
+            Base = settings.get("Auth_Base")
+            Scope = ldap.SCOPE_SUBTREE
+            Attrs = [ settings.get("Auth_Grp_Attr") ]
+            UsrAttr = settings.get("Auth_Usr_Attr")
+            if settings.get("Auth_Secure") == 'True':
+                if settings.get("Auth_Cert") != 'None' and settings.get("Auth_Cert") is not None:
+                    ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, settings.get("Auth_Cert"))
+                    ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+                else:
+                    ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+            print("DN=", DN, " base=", Base, "Scope=", Scope, "Attrs =", Attrs)
+            l = ldap.initialize(Server)
+            l.set_option(ldap.OPT_REFERRALS,0)
+            l.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+            if settings.get("Auth_Secure") == 'True':
+                l.start_tls_s()
+            l.bind_s(DN, password, ldap.AUTH_SIMPLE)
+            r = l.search(Base, Scope, UsrAttr + '=' + user, Attrs)
+            result = l.result(r,9)
         # TODO: remove or improve this try block. unbind() will throw ldap.LDAPError if it's called twice;
         # maybe that's why it's here. Would that ever happen here?
-        try:
-            l.unbind()
-        except:
-            pass
+            try:
+                l.unbind()
+            except:
+                pass
 
-        #get user groups
-        AttrsDict = result[1][0][1]
-        for key in AttrsDict:
-            for x in AttrsDict[key]:
-                #take only the substring after the first =, and before the comma
-                groups.append(x[x.find('=')+1:x.find(',')])
+            #get user groups
+            AttrsDict = result[1][0][1]
+            for key in AttrsDict:
+                for x in AttrsDict[key]:
+                    #take only the substring after the first =, and before the comma
+                    groups.append(x[x.find('=')+1:x.find(',')])
 
         return groups
     
@@ -485,8 +491,8 @@ class CommandHandler(LineOnlyReceiver):
             str_response += ',1,' if line[3] is not None else ',0,'
             str_response += ','.join([str(x) for x in line[4:]])
             str_response += '\n'
-        self.transport.write("\n")
-        self.transport.write(str_response[:-1])
+        self.transport.write("\n".encode('utf-8'))
+        self.transport.write(str_response[:-1].encode('utf-8'))
         self.transport.loseConnection()
 
     @defer.inlineCallbacks
@@ -506,7 +512,7 @@ class CommandHandler(LineOnlyReceiver):
         data = {line[0]: {key: convert(key, val) for key, val in zip(keys, line[1:])}
                          for line in response}
         
-        self.transport.write("\n")
+        self.transport.write("\n".encode('utf-8'))
         self.transport.write(json.dumps(data))
         self.transport.loseConnection()
 
@@ -516,8 +522,8 @@ class CommandHandler(LineOnlyReceiver):
         result = yield dbpool.runQuery("SELECT deactivated,reason FROM machines WHERE machine = %s",
                                        (hostname,))
         if len(result) == 0:
-            self.transport.write("\n")
-            self.transport.write("unknown machine: " + hostname)
+            self.transport.write("\n".encode('utf-8'))
+            self.transport.write("unknown machine: " + hostname.encode('utf-8'))
             self.tranport.loseConnection()
             raise StopIteration
         deactivated, reason = result[0]
@@ -546,8 +552,8 @@ class CommandHandler(LineOnlyReceiver):
             s.connect((hostname, port))
         except socket.error:
             logger.warning("couldn't send command to " + hostname)
-            self.transport.write("\n")
-            self.transport.write("Couldn't connect to {} on port {}.".format(hostname, port))
+            self.transport.write("\n".encode('utf-8'))
+            self.transport.write("Couldn't connect to {} on port {}.".format(hostname, port).encode('utf-8'))
             self.transport.loseConnection()
             return
         if settings.get("Broker_Cert") is None:
@@ -560,8 +566,8 @@ class CommandHandler(LineOnlyReceiver):
         s_wrapped.sendall(command + "\r\n")
 
     def ruok(self):
-        self.transport.write("\n")
-        self.transport.write("imok\n")
+        self.transport.write("\n".encode('utf-8'))
+        self.transport.write("imok\n".encode('utf-8'))
         self.transport.loseConnection()
 
 @defer.inlineCallbacks
