@@ -11,6 +11,7 @@ from subprocess import check_output, check_call
 import re
 import signal
 import traceback
+import subprocess
 from sched import scheduler
 from time import time, sleep
 from threading import Thread, Timer
@@ -47,10 +48,28 @@ settings = { "Host_Addr":'broker',
              "Agent_Priv_Key":None,
              "Interval":1,
              "Process_Listen":None,
-             "Hostname":None }
+             "Hostname":None,
+             "Override_Process_Check": None,
+             "Process_Restart_Script", None }
 checks = []
 
+def custom_check():
+    # use the user-specified script to check for the status of a process.
+    script_src = settings.get("Override_Process_Check")
+    # 3 possible states - not found, not running, not connected, okay
+    try:
+        return subprocess.check_output(script_src, shell=True).decode().strip()
+    except:
+        return "error in custom process check"
+
 def ps_check():
+    if settings.get("Override_Process_Check") != None:
+        return custom_check()
+    else:
+        return default_check()
+
+
+def default_check():
     # get the status of a process that matches settings.get("Process_Listen")
     # then check to make sure it has at least one listening conection on windows, you can't
     # search processes by yourself, so Popen "tasklist" to try to find the pid for the name
@@ -101,8 +120,11 @@ if os.name == "posix":
         subprocess.call(["shutdown", "-r", "now"])
 
     def restart():
-        subprocess.call(["init", "2"])
-        Timer(10, subprocess.call, (["init", "5"],)).start()
+        if settings.get("Process_Restart_Script") != None:
+            subprocess.check_output(settings.get("Process_Restart_Script"), shell=True)
+        else:
+            subprocess.call(["init", "2"])
+            Timer(10, subprocess.call, (["init", "5"],)).start()
         #subprocess.call(["init", "5"])
 
 
@@ -169,11 +191,15 @@ else:
 
     def restart():
         print("restarting")
-        if settings["Process_Listen"] is None:
+        if settings.get("Process_Restart_Script") != None:
+            subprocess.call(settings.get("Process_Restart_Script"), shell=True)
+
+        elif settings["Process_Listen"] is None:
             print("no process to restart")
             return
         #print("win32serviceutil.RestartService({})".format(settings["Process_Listen"]))
-        win32serviceutil.RestartService(settings["Process_Listen"].rstrip(".exe"))
+        else:
+            win32serviceutil.RestartService(settings["Process_Listen"].rstrip(".exe"))
 
     def reboot():
         print("rebooting")

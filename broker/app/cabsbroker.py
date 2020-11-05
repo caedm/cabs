@@ -71,7 +71,8 @@ settings = {"Max_Clients":'62',
             "Log_Keep":'600',
             "Log_Time":'1800',
             "One_Connection":'True',
-            "Trusted_Clients":None }
+            "Trusted_Clients":None ,
+            "Logging_Server":None }
 
 ## Handles each Agent connection
 class HandleAgent(LineOnlyReceiver, TimeoutMixin):
@@ -462,8 +463,10 @@ class CommandHandler(LineOnlyReceiver):
         log_levels = {command: level for level, command_list in CommandHandler.log_levels.items()
                                      for command in command_list}
         msg = "received command from {}: '{}'".format(self.transport.getPeer(), line.strip())
-        getattr(logger, log_levels[command])(msg)
-
+        if settings.get("Logging_Server") is None or self.transport.getPeer() != settings.get("Logging_Server")) {
+            getattr(logger, log_levels[command])(msg)
+        }
+    
         # execute
         try:
             getattr(self, command)(*args)
