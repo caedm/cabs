@@ -544,8 +544,8 @@ class CommandHandler(LineOnlyReceiver):
 
     def bad_command(self, command):
         logger.info("received bad command: '" + command + "'")
-        self.transport.write("\n")
-        self.transport.write("unrecognized command: " + command)
+        self.transport.write("\n".encode('utf-8'))
+        self.transport.write(str"unrecognized command: " + command).encode('utf-8'))
         self.transport.loseConnection()
 
     def tell_agent(self, command, hostname):
