@@ -463,9 +463,9 @@ class CommandHandler(LineOnlyReceiver):
         log_levels = {command: level for level, command_list in CommandHandler.log_levels.items()
                                      for command in command_list}
         msg = "received command from {}: '{}'".format(self.transport.getPeer(), line.strip())
-        if settings.get("Logging_Server") is None or self.transport.getPeer() != settings.get("Logging_Server")) {
+        if settings.get("Logging_Server") == None or self.transport.getPeer() != settings.get("Logging_Server"):
             getattr(logger, log_levels[command])(msg)
-        }
+        
     
         # execute
         try:
@@ -545,7 +545,7 @@ class CommandHandler(LineOnlyReceiver):
     def bad_command(self, command):
         logger.info("received bad command: '" + command + "'")
         self.transport.write("\n".encode('utf-8'))
-        self.transport.write(str"unrecognized command: " + command).encode('utf-8'))
+        self.transport.write(str("unrecognized command: " + command).encode('utf-8'))
         self.transport.loseConnection()
 
     def tell_agent(self, command, hostname):
