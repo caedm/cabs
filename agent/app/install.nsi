@@ -40,15 +40,18 @@ Section "CABS Agent (required)"
   
   # Set output path to the installation directory.
   SetOutPath $INSTDIR
-  
+  SetRegView 64
   # Put file there
-  File "cabsagentsvc.exe"
+  File "cabsagent.exe"
   
   #Copy over the other items
   CopyFiles $EXEDIR\cabsagent.conf $INSTDIR
-  CopyFiles $EXEDIR\version.txt $INSTDIR
+  CopyFiles $EXEDIR\background.bat $INSTDIR
+  CopyFiles $EXEDIR\invisible.vbs $INSTDIR
   CreateDirectory $INSTDIR\checks
-  CopyFiles $EXEDIR\checks\* $INSTDIR\checks
+  CopyFiles $EXEDIR\checks\pscheck.exe $INSTDIR\checks
+  #CreateShortCut "$SMPROGRAMS\Startup\cabsagent.lnk" "$INSTDIR\background.bat" "" 
+
   CopyFiles $EXEDIR\*.pem $INSTDIR
 
   #FindFirst $0 $1 $EXEDIR\*.pem
@@ -57,8 +60,10 @@ Section "CABS Agent (required)"
   #FindClose $0
   
   #Install the Service
-  Exec '"$INSTDIR\cabsagentsvc.exe" --startup=auto install'
-  Exec '"$INSTDIR\cabsagentsvc.exe" start'
+  #Exec '"$INSTDIR\cabsagent.exe" --startup=auto install'
+  #Exec '"$INSTDIR\cabsagent.exe" start'
+  #i
+  WriteRegStr HKLM Software\Microsoft\Windows\CurrentVersion\Run CABS_Agent %ProgramFiles%\CABS\Agent\background.bat
 
 
   # Write the installation path into the registry
@@ -73,12 +78,14 @@ SectionEnd
 Section "Uninstall"
   # TODO make it actually remove all the files it installs
   # Remove registry keys
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_agent"
+  SetRegView 64
+  DeleteRegKey HKLM Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_agent
   DeleteRegKey HKLM SOFTWARE\CABS_agent
+  DeleteRegValue HKLM Software\Microsoft\Windows\CurrentVersion\Run\ CABS_agent
 
   Delete $INSTDIR\uninstall.exe
- 
-  Delete $INSTDIR\cabsagentsvc.exe
+  Delete &INSTDIR\checks\pscheck.exe
+  Delete $INSTDIR\cabsagent.exe
   Delete $INSTDIR\cabsagent.conf
   FindFirst $0 $1 $INSTDIR\*.pem
 	Delete $INSTDIR\$1
