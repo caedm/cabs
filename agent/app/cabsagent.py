@@ -47,15 +47,24 @@ settings = { "Host_Addr":'broker',
              "Agent_Cert":None,
              "Agent_Priv_Key":None,
              "Interval":1,
+             "Checks_Dir": None,
              "Process_Listen":None,
              "Hostname":None,
+             "Log_Level":None,
              "Override_Process_Check": None,
              "Process_Restart_Script", None }
 checks = []
 
 def custom_check():
     # use the user-specified script to check for the status of a process.
-    script_src = settings.get("Override_Process_Check")
+    if settings.get("Checks_Dir") != None:
+        if os.nam != 'posix':
+            script_src = settings.get("Check_Dir") + "/" + settings.get("Override_Process_Check")
+        else:
+            script_src = settings.get("Check_Dir") + "\\" + settings.get("Override_Process_Check")
+    else:
+        script_src = settings.get("Override_Process_Check")
+
     # 3 possible states - not found, not running, not connected, okay
     try:
         return subprocess.check_output(script_src, shell=True).decode().strip()
@@ -121,7 +130,10 @@ if os.name == "posix":
 
     def restart():
         if settings.get("Process_Restart_Script") != None:
-            subprocess.check_output(settings.get("Process_Restart_Script"), shell=True)
+            restart_src = settings.get("Process_Restart_Script")
+            if settings.get("Checks_Dir") != None:
+                retart_src = settings.get("Checks_Dir") + "/" + settings.get("Process_Restart_Script")
+            subprocess.check_output(restart_src, shell=True)
         else:
             subprocess.call(["init", "2"])
             Timer(10, subprocess.call, (["init", "5"],)).start()
@@ -190,14 +202,17 @@ else:
     #        win32serviceutil.HandleCommandLine(AgentService)
 
     def restart():
-        print("restarting")
-        if settings.get("Process_Restart_Script") != None:
-            subprocess.call(settings.get("Process_Restart_Script"), shell=True)
-
+       if settings.get("Process_Restart_Script") != None:
+            restart_src = settings.get("Process_Restart_Script")
+            if settings.get("Checks_Dir") != None:
+                retart_src = settings.get("Checks_Dir") + "\\" + settings.get("Process_Restart_Script")
+            try: 
+                subprocess.check_output(restart_src, shell=True)
+            except:
+                print("failure in custom restart execution")
         elif settings["Process_Listen"] is None:
             print("no process to restart")
             return
-        #print("win32serviceutil.RestartService({})".format(settings["Process_Listen"]))
         else:
             win32serviceutil.RestartService(settings["Process_Listen"].rstrip(".exe"))
 
