@@ -52,7 +52,7 @@ settings = { "Host_Addr":'broker',
              "Hostname":None,
              "Log_Level":None,
              "Override_Process_Check": None,
-             "Process_Restart_Script", None }
+             "Process_Restart_Script": None }
 checks = []
 
 def custom_check():
@@ -202,7 +202,7 @@ else:
     #        win32serviceutil.HandleCommandLine(AgentService)
 
     def restart():
-       if settings.get("Process_Restart_Script") != None:
+        if settings.get("Process_Restart_Script") != None:
             restart_src = settings.get("Process_Restart_Script")
             if settings.get("Checks_Dir") != None:
                 retart_src = settings.get("Checks_Dir") + "\\" + settings.get("Process_Restart_Script")
