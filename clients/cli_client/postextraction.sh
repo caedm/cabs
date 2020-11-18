@@ -18,6 +18,7 @@ cp cert.pem "$DESTINATION"
 chmod a+r "$DESTINATION/cert.pem"
 cp CABS_client.conf "$DESTINATION"
 chmod a+r "$DESTINATION/CABS_client.conf"
+cp -r shared "$DESTINATION"
 
 # For MacOS
 mkdir -p /usr/local/bin

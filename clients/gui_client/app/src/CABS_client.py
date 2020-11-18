@@ -8,6 +8,7 @@ from time import sleep
 from os.path import isfile
 from ast import literal_eval
 from os.path import dirname, join, abspath
+from shared.clientlib import Clientlib
 
 import wx
 import json
@@ -24,6 +25,7 @@ except IOError:
     version=""
 
 settings = {}
+clientlib = Clientlib(os.path.dirname(os.path.abspath(application_path)), settings)
 try:
     import psutil
     settings["psutil"] = 'True'
@@ -36,128 +38,6 @@ ID_POOL_BUTTON = wx.NewId()
 ID_SAVE_BUTTON = wx.NewId()
 ID_RESET_BUTTON = wx.NewId()
 ID_SUBMIT_BUTTON = wx.NewId()
-
-def getRGSversion():
-    p = subprocess.Popen([settings.get("RGS_Location"), "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out, er = p.communicate()
-    version = (out+er).split()[(out+er).split().index('Version')+1]
-    return version
-
-def readConfigFile():
-    global settings
-    if getattr(sys, 'frozen', False):
-        application_path = sys.executable
-    else:
-        application_path = __file__
-    filelocation = os.path.dirname(os.path.abspath(application_path)) + '/CABS_client.conf'
-    if not isfile(filelocation):
-        return False
-    
-    with open(filelocation, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if (not line.startswith('#')) and line:
-                try:
-                    (key,val) = line.split(':\t',1)
-                except:
-                    print "Warning : Check .conf syntax"
-                    try:
-                        (key,val) = line.split(None,1)
-                        key = key[:-1]
-                    except:
-                        key = line
-                        key = key.strip()
-                        key = key[:-1]
-                        val = ''
-                settings[key] = val
-        f.close()
-    #insert default settings for all not specified
-    if not settings.get("Host_Addr"):
-        settings["Host_Addr"] = 'localhost'
-    if not settings.get("Client_Port"):
-        settings["Client_Port"] = 18181
-    if not settings.get("SSL_Cert"):
-        settings["SSL_Cert"] = None
-    if not settings.get("Command"):
-        if settings.get("Command-Win"):
-            settings["Command"] = settings.get("Command-Win")
-        elif settings.get("Command-Lin"):
-            settings["Command"] = settings.get("Command-Lin")
-        else:
-            settings["Command"] = None
-    if not settings.get("RGS_Options"):
-        settings["RGS_Options"] = False
-    if not settings.get("RGS_Location"):
-        settings["RGS_Location"] = None
-    if (not settings.get("Net_Domain")) or (settings.get("Net_Domain")=='None'):
-        settings["Net_Domain"] = ""
-    if not settings.get("RGS_Version"):
-        settings["RGS_Version"] = 'False'
-    if not settings.get("RGS_Hide"):
-        settings["RGS_Hide"] = 'True'
-    
-    return True
-
-def getPools(user, password, host, port, retry=0):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((host, port))
-    if settings.get("RGS_Version") == True:
-        content = json.dumps(['prv', user, password, getRGSversion()]) + '\r\n'
-    else:
-        content = json.dumps(['pr', user, password]) + '\r\n'
-    
-    if (settings.get("SSL_Cert") is None) or (settings.get("SSL_Cert") == 'None'):
-        s_wrapped = s
-    else:
-        ssl_cert = os.path.dirname(os.path.abspath(__file__)) + "/" + settings.get("SSL_Cert")
-        s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
-    
-    s_wrapped.sendall(content)
-    pools = ""
-    while True:
-        chunk = s_wrapped.recv(1024)
-        pools += chunk
-        if chunk == '':
-            break;
-    if pools.startswith("Err:"):
-        if (pools == "Err:RETRY") and (retry < 6):
-            sleep(retry)
-            return getPools(user, password, host, port, retry+1)
-        else:
-            raise ServerError(pools)
-    poolsliterals = pools.split('\n')
-    poolset = set()
-    for literal in poolsliterals:
-        if literal:
-            poolset.add(literal_eval(literal))
-    return poolset
-
-def getMachine(user, password, pool, host, port, retry=0):
-    if pool == '' or pool is None:
-        return ''
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((host, port))
-    content = json.dumps(['mr', user, password, pool]) + '\r\n'
-    if (settings.get("SSL_Cert") is None) or (settings.get("SSL_Cert") == 'None'):
-        s_wrapped = s
-    else:
-        ssl_cert = os.path.dirname(os.path.abspath(__file__)) + "/" + settings.get("SSL_Cert")
-        s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
-    
-    s_wrapped.sendall(content)
-    machine = ""
-    while True:
-        chunk = s_wrapped.recv(1024)
-        machine += chunk
-        if chunk == '':
-            break;
-    if machine.startswith("Err:"):
-        if (machine == "Err:RETRY") and (retry < 6):
-            sleep(retry)
-            return getMachine(user, password, pool, host, port, retry+1)
-        else:
-            raise ServerError(machine)
-    return machine
 
 class ServerError(Exception):
     pass
@@ -771,7 +651,7 @@ class MainWindow(wx.Frame):
     def InitUI(self):
         
         p = wx.Panel(self)
-        headerimage = wx.Image(join(root, 'Header.png'), wx.BITMAP_TYPE_ANY)
+        headerimage = wx.Image(join(root, settings.get("Branding")), wx.BITMAP_TYPE_ANY)
         header = wx.StaticBitmap(p, wx.ID_ANY, wx.BitmapFromImage(headerimage))
         
         self.sizer = wx.BoxSizer(wx.VERTICAL)
@@ -858,7 +738,7 @@ class MainWindow(wx.Frame):
                 port = self.notebook.port.GetValue()
 
             try:
-                pools = getPools(username, password, server, port)
+                pools = clientlib.getPools(username, password, server, port)
                 self.poolDialog(pools, username, password, server, port)
             except ServerError as e:
                 message = showError(e[0])
@@ -890,7 +770,7 @@ class MainWindow(wx.Frame):
             if poolchoice is None:
                 return
             try:
-                machine = getMachine(username, password, poolchoice, server, port)
+                machine = clientlib.getMachine(username, password, poolchoice, server, port)
             except ServerError as e:
                 message = showError(e[0])
                 dlg = wx.MessageDialog(self, message, 'Error', wx.OK | wx.ICON_ERROR)
@@ -1027,7 +907,7 @@ if __name__ == "__main__":
     global rgscommand
     rgscommand = None
 
-    if readConfigFile():
+    if clientlib.readConfigFile('CABS_client.conf'):
         app = wx.App(False)
         MainWindow(None).Show()
         app.MainLoop()
