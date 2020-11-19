@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 # get the status of a process that matches settings.get("Process_Listen")
 # then check to make sure it has at least one listening conection on windows, you can't
 # search processes by yourself, so Popen "tasklist" to try to find the pid for the name
@@ -10,7 +10,6 @@ import re
 from argparse import ArgumentParser
 import subprocess
 from os.path import join
-
 if os.name == "posix":
     default = "rgsender"
 
@@ -30,13 +29,14 @@ else:
         p = psutil.Popen("tasklist", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
         out, err = p.communicate()
-        l_start = out.find(ps_name)
-        l_end = out.find('\n', l_start)
-        m = re.search(r"\d+", out[l_start: l_end])
-        if m is None:
-            return None
-        return  psutil.Process(int(m.group(0)))
-
+        for proc in psutil.process_iter():
+            try:
+                if ps_name.lower() in proc.name().lower():
+                    return proc
+            except:
+                pass
+        return None
+        
 def status(ps_name):
     process = find_process(ps_name)
     if process is None:
@@ -54,4 +54,4 @@ if __name__ == "__main__":
     parser.add_argument("process", nargs="?", default=default)
     args = parser.parse_args()
 
-    print status(args.process)
+    print (status(args.process))
