@@ -82,11 +82,12 @@ Section "Uninstall"
   DeleteRegKey HKLM Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_agent
   DeleteRegKey HKLM SOFTWARE\CABS_agent
   DeleteRegValue HKLM Software\Microsoft\Windows\CurrentVersion\Run\ CABS_agent
-
+  RMDir /r $INSTDIR\checks
   Delete $INSTDIR\uninstall.exe
   Delete &INSTDIR\checks\pscheck.exe
   Delete $INSTDIR\cabsagent.exe
   Delete $INSTDIR\cabsagent.conf
+  RMDIR /r $INSTDIR
   FindFirst $0 $1 $INSTDIR\*.pem
 	Delete $INSTDIR\$1
   FindClose $0
