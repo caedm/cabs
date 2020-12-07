@@ -85,6 +85,7 @@ if __name__ == "__main__":
         pools_array = []
         for pool in pools:
             pools_array.append(pool)
+        pools_array.sort()
         print("")
         print("Choose a pool to connect to:")
         for i in range(len(pools_array)):
