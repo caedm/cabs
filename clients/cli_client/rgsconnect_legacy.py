@@ -107,7 +107,10 @@ if __name__ == "__main__":
         #it seems to be ignoring the resolution anyways, so we won't bother asking.
         cl_resolution = 1
         rgscommand = [settings["RGS_Location"], '-nosplash', '-Rgreceiver.Session.0.IsConnectOnStartup=1', '-Rgreceiver.Session.0.Hostname=' + cl_machine + '.et.byu.edu', '-Rgreceiver.Session.0.Username=' + cl_user, '-Rgreceiver.Session.0.Password=' + cl_pass, '-Rgreceiver.Session.0.PasswordFormat=Clear', '-Rgreceiver.Session.0.VirtualDisplay.PreferredResolutionWidth=' + str(resolutions[cl_resolution][1]), '-Rgreceiver.Session.0.VirtualDisplay.PreferredResolutionHeight=' + str(resolutions[cl_resolution][2]), '-Rgreceiver.ImageCodec.Quality=75', '-Rgreceiver.IsBordersEnabled=1', '-Rgreceiver.IsSnapEnabled=0', '-Rgreceiver.Audio.IsEnabled=1', '-Rgreceiver.Audio.IsInStereo=1', '-Rgreceiver.Audio.Quality=2', '-Rgreceiver.Mic.IsEnabled=1', '-Rgreceiver.Hotkeys.IsKeyRepeatEnabled=0', '-Rgreceiver.Clipboard.IsEnabled=1', '-Rgreceiver.Usb.IsEnabled=1', '-Rgreceiver.Network.Timeout.Dialog=60000', '-Rgsender.IsReconnectOnConsoleDisconnectEnabled=0']
-        p = subprocess.Popen(rgscommand)
-        watchProcess(p.pid)
+        if clientlib.check_file(settings["RGS_Location"]):
+            p = subprocess.Popen(rgscommand)
+            watchProcess(p.pid)
+        else:
+            print("Error: Couldn't start connection. Nothing installed at ", settings["RGS_Location"])
     else:
         print("Could not load settings file")
