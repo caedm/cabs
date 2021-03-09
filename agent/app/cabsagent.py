@@ -177,10 +177,16 @@ else:
     #import servicemanager
     import win32api
     import win32serviceutil
-    from getpass import getuser
+    import wmi
+
 
     def user_list():
-        return [getuser()]
+        conn = wmi.WMI()
+        users_query = "select * from Win32_Process where name = 'explorer.exe'"
+        users_set = set()
+        for username in conn.query(users_query):
+            users_set.add(username.GetOwner()[2])
+        return list(users_set)
 
     def find_process():
         p = psutil.Popen("tasklist", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -191,7 +197,7 @@ else:
         m = re.search(r"\d+", out[l_start: l_end])
         if m is None:
             return None
-        return  psutil.Process(int(m.group(0)))
+        return psutil.Process(int(m.group(0)))
 
     #def heartbeat_loop():
     #    if len(sys.argv) == 1:

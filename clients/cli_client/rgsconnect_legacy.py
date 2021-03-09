@@ -5,7 +5,7 @@ import time
 import os
 from time import sleep
 from os.path import dirname, abspath
-from shared.clientlib import Clientlib
+from shared.clientlib import Clientlib, Reconnect, ServerError
 from argparse import ArgumentParser
 
 if getattr(sys, 'frozen', False):
@@ -74,43 +74,71 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('-d', '--debug', action='store_true')
     argv = parser.parse_args()
-    clientlib = clientlib(os.path.dirname(os.path.abspath(__file__)), settings)
+    clientlib = Clientlib(os.path.dirname(os.path.abspath(__file__)), settings)
 
     if clientlib.readConfigFile('CABS_client.conf'):
         print("Connecting to RGS Connect...")
         cl_user = raw_input("CAEDM User Name: ")
         cl_pass = getpass.getpass()
         #pools=getPools(cl_user,cl_pass,settings["Host_Addr"],18181)
-        pools= clientlib.getPools(cl_user,cl_pass,settings["Host_Addr"], int(settings["Client_Port"]))
-        pools_array = []
-        for pool in pools:
-            pools_array.append(pool)
-        pools_array.sort()
-        print("")
-        print("Choose a pool to connect to:")
-        for i in range(len(pools_array)):
-            print(str(i) + ": " + pools_array[i][0] + ": " + pools_array[i][1])
-        print("")
-        cl_pool = int(raw_input("Please enter a pool number: "))
-        cl_machine = clientlib.getMachine(cl_user, cl_pass, pools_array[cl_pool][0], settings["Host_Addr"], int(settings["Client_Port"]))
-        print("Reservation established for " + cl_machine)
-        resolutions = []
-        resolutions.append(("720p",1280,720))
-        resolutions.append(("1080p",1920,1080))
-        resolutions.append(("1440p",2560,1440))
-        resolutions.append(("4k",3640,2160))
-        #print("Choose a screen resolution:")
-        #for i in range(len(resolutions)):
-        #    print(str(i) + ": " + resolutions[i][0])
-        #print("")
-        #cl_resolution = int(raw_input("Please choose a screen resolution: "))
-        #it seems to be ignoring the resolution anyways, so we won't bother asking.
-        cl_resolution = 1
-        rgscommand = [settings["RGS_Location"], '-nosplash', '-Rgreceiver.Session.0.IsConnectOnStartup=1', '-Rgreceiver.Session.0.Hostname=' + cl_machine + '.et.byu.edu', '-Rgreceiver.Session.0.Username=' + cl_user, '-Rgreceiver.Session.0.Password=' + cl_pass, '-Rgreceiver.Session.0.PasswordFormat=Clear', '-Rgreceiver.Session.0.VirtualDisplay.PreferredResolutionWidth=' + str(resolutions[cl_resolution][1]), '-Rgreceiver.Session.0.VirtualDisplay.PreferredResolutionHeight=' + str(resolutions[cl_resolution][2]), '-Rgreceiver.ImageCodec.Quality=75', '-Rgreceiver.IsBordersEnabled=1', '-Rgreceiver.IsSnapEnabled=0', '-Rgreceiver.Audio.IsEnabled=1', '-Rgreceiver.Audio.IsInStereo=1', '-Rgreceiver.Audio.Quality=2', '-Rgreceiver.Mic.IsEnabled=1', '-Rgreceiver.Hotkeys.IsKeyRepeatEnabled=0', '-Rgreceiver.Clipboard.IsEnabled=1', '-Rgreceiver.Usb.IsEnabled=1', '-Rgreceiver.Network.Timeout.Dialog=60000', '-Rgsender.IsReconnectOnConsoleDisconnectEnabled=0']
-        if clientlib.check_file(settings["RGS_Location"]):
-            p = subprocess.Popen(rgscommand)
-            watchProcess(p.pid)
-        else:
-            print("Error: Couldn't start connection. Nothing installed at ", settings["RGS_Location"])
+        try:
+            version_err_message, pools= clientlib.getPools(cl_user,cl_pass,settings["Host_Addr"], int(settings["Client_Port"]))
+            pools_array = []
+            for pool in pools:
+                pools_array.append(pool)
+            pools_array.sort()
+            print("")
+            print("Choose a pool to connect to:")
+            for i in range(len(pools_array)):
+                print(str(i) + ": " + pools_array[i][0] + ": " + pools_array[i][1])
+            print("")
+            if version_err_message:
+                print(version_err_message)
+            print("")
+            cl_pool = int(raw_input("Please enter a pool number: "))
+            existing_conn, cl_machine = clientlib.getMachine(cl_user, cl_pass, pools_array[cl_pool][0], settings["Host_Addr"], int(settings["Client_Port"]))
+
+            if existing_conn:
+                print("Previous connection found.")
+                print(
+                    "If you choose to log into a new machine in this pool, all of your existing sessions in this pool will be terminated.\nThis means that you will be logged out of all other machines in this pool, and any work that has not been saved will be lost.")
+                print("reconnect to existing machine?")
+                reconn = raw_input("y/n")
+                while not (reconn == "y" or reconn == "n"):
+                    reconn = raw_input("input must be y/n")
+                if reconn == "y":
+                    existing_conn, cl_machine = clientlib.getMachine(user=cl_user, password=cl_pass,
+                                                                     pool=pools_array[cl_pool][0],
+                                                                     host=settings["Host_Addr"],
+                                                                     port=int(settings["Client_Port"]),
+                                                                     reconnect_preference=Reconnect.Do)
+                elif reconn == "n":
+                    existing_conn, cl_machine = clientlib.getMachine(user=cl_user, password=cl_pass,
+                                                                     pool=pools_array[cl_pool][0],
+                                                                     host=settings["Host_Addr"],
+                                                                     port=int(settings["Client_Port"]),
+                                                                     reconnect_preference=Reconnect.Dont)
+
+            print("Reservation established for " + cl_machine)
+            resolutions = []
+            resolutions.append(("720p",1280,720))
+            resolutions.append(("1080p",1920,1080))
+            resolutions.append(("1440p",2560,1440))
+            resolutions.append(("4k",3640,2160))
+            #print("Choose a screen resolution:")
+            #for i in range(len(resolutions)):
+            #    print(str(i) + ": " + resolutions[i][0])
+            #print("")
+            #cl_resolution = int(raw_input("Please choose a screen resolution: "))
+            #it seems to be ignoring the resolution anyways, so we won't bother asking.
+            cl_resolution = 1
+            rgscommand = [settings["RGS_Location"], '-nosplash', '-Rgreceiver.Session.0.IsConnectOnStartup=1', '-Rgreceiver.Session.0.Hostname=' + cl_machine + '.et.byu.edu', '-Rgreceiver.Session.0.Username=' + cl_user, '-Rgreceiver.Session.0.Password=' + cl_pass, '-Rgreceiver.Session.0.PasswordFormat=Clear', '-Rgreceiver.Session.0.VirtualDisplay.PreferredResolutionWidth=' + str(resolutions[cl_resolution][1]), '-Rgreceiver.Session.0.VirtualDisplay.PreferredResolutionHeight=' + str(resolutions[cl_resolution][2]), '-Rgreceiver.ImageCodec.Quality=75', '-Rgreceiver.IsBordersEnabled=1', '-Rgreceiver.IsSnapEnabled=0', '-Rgreceiver.Audio.IsEnabled=1', '-Rgreceiver.Audio.IsInStereo=1', '-Rgreceiver.Audio.Quality=2', '-Rgreceiver.Mic.IsEnabled=1', '-Rgreceiver.Hotkeys.IsKeyRepeatEnabled=0', '-Rgreceiver.Clipboard.IsEnabled=1', '-Rgreceiver.Usb.IsEnabled=1', '-Rgreceiver.Network.Timeout.Dialog=60000', '-Rgsender.IsReconnectOnConsoleDisconnectEnabled=0']
+            if clientlib.check_file(settings["RGS_Location"]):
+                p = subprocess.Popen(rgscommand)
+                watchProcess(p.pid)
+            else:
+                print("Error: Couldn't start connection. Nothing installed at ", settings["RGS_Location"])
+        except ServerError as e:
+            print(e)
     else:
         print("Could not load settings file")

@@ -1,9 +1,12 @@
 [submodule "clients/gui_client/app/src/shared"]
 	path = clients/gui_client/app/src/shared
 	url = https://github.com/caedm/cabs-client-lib.git
+	ignore = dirty
 [submodule "clients/windows_labconnect/shared"]
 	path = clients/windows_labconnect/shared
 	url = https://github.com/caedm/cabs-client-lib.git
+	ignore = dirty
 [submodule "clients/cli_client/shared"]
 	path = clients/cli_client/shared
 	url = https://github.com/caedm/cabs-client-lib.git
+	ignore = dirty

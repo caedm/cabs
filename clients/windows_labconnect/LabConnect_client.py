@@ -4,16 +4,13 @@ import subprocess
 import sys
 import time
 import os
-from time import sleep
 from os.path import isfile
 from os.path import dirname, join, abspath
-from pathlib import Path
-from shared.clientlib import Clientlib
-
+from shared.clientlib import Clientlib, Reconnect
 
 import wx
-import json
 from argparse import ArgumentParser
+
 encoding = 'utf-8'
 
 if getattr(sys, 'frozen', False):
@@ -746,13 +743,14 @@ class MainWindow(wx.Frame):
                 port = self.notebook.port.GetValue()
 
             try:
-                pools = clientlib.getPools(username, password, server, port)
-                self.poolDialog(pools, username, password, server, port)
+                version_err_msg, pools = clientlib.getPools(username, password, server, port)
+                self.poolDialog(pools, username, password, server, port, version_err_msg=version_err_msg)
             #except ServerError as e:
             #    message = showError(e[0])
             #    dlg = wx.MessageDialog(self, message, 'Error', wx.OK | wx.ICON_ERROR)
             #    dlg.ShowModal()
-            except:
+            except Exception as e:
+                print(e)
                 message = showError("pools")
                 dlg = wx.MessageDialog(self, message, 'Error', wx.OK | wx.ICON_ERROR)
                 dlg.ShowModal()
@@ -769,7 +767,11 @@ class MainWindow(wx.Frame):
             self.tab5.load(True)
             self.tab6.load(True)
     
-    def poolDialog(self, pools, username, password, server, port):
+    def poolDialog(self, pools, username, password, server, port, version_err_msg=None):
+        if version_err_msg:
+            version_dlg = wx.MessageDialog(self, message=version_err_msg, style=wx.CENTRE | wx.OK)
+            version_dlg.ShowModal()
+
         if pools:
             dlg = PickPoolDialog(self, pools)
             dlg.ShowModal()
@@ -777,20 +779,29 @@ class MainWindow(wx.Frame):
             dlg.Destroy()
             if poolchoice is None:
                 return
+
             try:
-                machine = clientlib.getMachine(username, password, poolchoice, server, port)
+                existing_con, machine = clientlib.getMachine(username, password, poolchoice, server, port, reconnect_preference=Reconnect.NotSpecified)
+                if existing_con:
+                    msg = "Existing Session Found.\nIf you choose 'No' to log into a new machine in this pool, all of your existing sessions in this pool will be terminated.\nThis means that you will be logged out of all other machines in this pool, and any work that has not been saved will be lost. Would you like to Reconnect?"
+                    recon_dlg = wx.MessageDialog(self,message=msg,caption="",style = wx.CENTRE|wx.YES_NO|wx.YES_DEFAULT|wx.CANCEL)
+                    button = recon_dlg.showModal()
+                    if button == wx.ID_YES:
+                        existing_con, machine = clientlib.getMachine(username, password, poolchoice, server, port, reconnect_preference=Reconnect.Do)
+                    if button == wx.ID_NO:
+                        existing_con, machine = clientlib.getMachine(username, password, poolchoice, server, port, reconnect_preference=Reconnect.Dont)
+                    else:
+                        # cancel pushed.
+                        return self.poolDialog(self, pools, username, password, server, port, version_err_msg=version_err_msg)
             except ServerError as e:
-                message = showError(e[0])
-                dlg = wx.MessageDialog(self, message, 'Error', wx.OK | wx.ICON_ERROR)
+                dlg = wx.MessageDialog(self, str(e), 'Error', wx.OK | wx.ICON_ERROR)
                 dlg.ShowModal()
-            except:
+            except Exception as e:
+                print(e)
                 message = showError("machines")
                 dlg = wx.MessageDialog(self, message, 'Error', wx.OK | wx.ICON_ERROR)
                 dlg.ShowModal()
             else:
-                #run the RGS command
-                #print machine
-                #create rdp file
                 temp_file_location = os.environ['USERPROFILE'] + "/AppData/Local/Temp/" + str(int(time.time())) + ".rdp"
                 f = open(temp_file_location, "w")
                 f.write("gatewayhostname:s:rdpgateway.et.byu.edu\n")
@@ -798,23 +809,21 @@ class MainWindow(wx.Frame):
                 f.write("promptcredentialonce:i:1\n")
                 f.write("gatewayprofileusagemethod:i:1\n")
                 f.write("prompt for credentials:i:0\n")
-                f.write("full address:s:%s\n" % machine)
-                f.write("username:s:%s\n" % username)
-                f.write("password:s:%s\n" % password)
-                f.write("domain:s:et.byu.edu\n")
+                f.write("full address:s:%s\n" % cl_machine)
                 f.close()
-                #rgscommand = ["open", "-n", "-F", "-a", "/Applications/Microsoft Remote Desktop.app/Contents/MacOS/Microsoft Remote Desktop", temp_file_location]
-                #p = subprocess.Popen(rgscommand)
-                #watchProcess(p.pid)
-                #Line below is for LabConnect to launch the rdp file we just created
-                os.startfile(temp_file_location)
-                #Line below for RGS Connect
-                #self.runCommand(username, password, machine, port)
+                # rgscommand = ["open", "-n", "-F", "-a", "/Applications/Microsoft Remote Desktop.app/Contents/MacOS/Microsoft Remote Desktop", temp_file_location]
+                # The following saves the user's CAEDM credentials in the local Windows credentials cache, and then deletes the credentials after the RDP session is closed
+                subprocess.Popen("cmdkey /add:rdpgateway.et.byu.edu /user:et.byu.edu\%s /pass:%s" % (cl_user, cl_pass))
+                subprocess.Popen("cmdkey /add:%s /user:et.byu.edu\%s /pass:%s" % (cl_machine, cl_user, cl_pass))
+                p = subprocess.Popen("mstsc %s" % temp_file_location)
+                watchProcess(p.pid)
+                subprocess.Popen("cmdkey /delete %s" % cl_machine)
+
         else:
             message = showError("machines")
             dlg = wx.MessageDialog(self, message, 'Error', wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
-        
+
 
     def runCommand(self, username, password, machine, port):
         if settings.get("RGS_Options") == 'True':
@@ -926,6 +935,16 @@ class NoConf(wx.Frame):
         wx.MessageBox('Could not find LabConnect in:\n{0}'.format(filelocation), 'Error', wx.CANCEL | wx.ICON_ERROR)
         self.Destroy()
 
+def cleanupOldTmpFiles(self):
+    import re
+    path = os.environ['USERPROFILE'] + "/AppData/Local/Temp/"
+    regex = re.compile("[0-9]+\.rdp]")
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            if regex.match(file):
+                os.remove(file)
+        break
+
 if __name__ == "__main__":
     print("running")
     global argv
@@ -938,6 +957,7 @@ if __name__ == "__main__":
     rgscommand = None
 
     if clientlib.readConfigFile('LabConnect.conf'):
+
         app = wx.App(False)
         MainWindow(None).Show()
         app.MainLoop()

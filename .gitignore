@@ -6,4 +6,6 @@ venv
 *.deb
 dist
 *.exe
+*.idea
+shared
 rgsconnect_installer.sh
