@@ -62,8 +62,10 @@ checks = []
 
 def custom_check():
     # use the user-specified script to check for the status of a process.
+    if settings.get("Override_Process_Check") is None:
+        return "no Override_Process_Check set"
+
     if settings.get("Checks_Dir") is not None:
-        # how to build a path os independent?
         script_src = os.path.join(settings.get("Checks_Dir"), settings.get("Override_Process_Check"))
     else:
         script_src = settings.get("Override_Process_Check")
