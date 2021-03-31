@@ -558,7 +558,7 @@ def send_agent_cmd(command, hostname):
         s_wrapped = ssl.wrap_socket(s, certfile=settings["Broker_Cert"],
                                     keyfile=settings["Broker_Priv_Key"], cert_reqs=ssl.CERT_REQUIRED,
                                     ca_certs=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
-    s_wrapped.sendall(command + "\r\n".encode('utf-8'))
+    s_wrapped.sendall(str(command + "\r\n").encode('utf-8'))
 
 
 # exception classes for auto-it
@@ -604,6 +604,10 @@ class CommandHandler(LineOnlyReceiver):
 
     def lineReceived(self, line):
         # parse
+        try:
+            line = line.decode("utf-8")
+        except:
+            pass
         segments = line.split(':')
         command = segments[0]
         args = segments[1:]
@@ -623,7 +627,7 @@ class CommandHandler(LineOnlyReceiver):
         # execute
         try:
             getattr(self, command)(*args)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
             # Incorrect arguments.
             self.bad_command(line)
 
@@ -675,7 +679,7 @@ class CommandHandler(LineOnlyReceiver):
     @defer.inlineCallbacks
     def autoit(self, action, hostname):
         try:
-            setAutoit(action, hostname)
+            yield setAutoit(action, hostname)
         except AutoitUnknownMachine:
             self.transport.write("\n".encode('utf-8'))
             self.transport.write("unknown machine: " + hostname.encode('utf-8'))
@@ -693,14 +697,16 @@ class CommandHandler(LineOnlyReceiver):
     def tell_agent(self, command, hostname):
         try:
             send_agent_cmd(command, hostname)
-        except socket.error:
+        except socket.error as e:
+            print(e)
             logger.warning("couldn't send command to " + hostname)
             self.transport.write("\n".encode('utf-8'))
-            self.transport.write("Couldn't connect to {} on port {}.".format(hostname, port).encode('utf-8'))
+            self.transport.write("Couldn't connect to {}.".format(hostname).encode('utf-8'))
             self.transport.loseConnection()
             return
 
     def ruok(self):
+        print("imok")
         self.transport.write("\n".encode('utf-8'))
         self.transport.write("imok\n".encode('utf-8'))
         self.transport.loseConnection()
