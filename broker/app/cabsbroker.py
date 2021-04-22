@@ -230,6 +230,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
         # We can receieve 2 types of lines from a client, poolrequest (pr), machine request(mr)
         # todo: support
         isjson = False
+
         line = line.decode('utf-8')
         try:
             # handle the updated request format using client objects
@@ -249,6 +250,7 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
             user = request[1]
             password = request[2]
         try:
+            # get user groups?
             self.groups = (self.user_groups(user, password) if not argv.debug else
                            ['main', 'secondary', 'other'])
         except ldap.INVALID_CREDENTIALS:
@@ -445,45 +447,57 @@ class HandleClient(LineOnlyReceiver, TimeoutMixin):
 
     def user_groups(self, user, password):
         groups = []
-
-        Server = settings.get("Auth_Server")
+        # first bind and then query - should be the same as PHP
+        Server = settings.get("Auth_Server") # server.et.byu.edu
         if Server != "":
             if Server.startswith("AUTO"):
                 raise ReferenceError("No AUTO Authentication Server yet")
             if not Server.startswith("ldap"):
                 Server = "ldap://" + Server
-            DN = settings.get("Auth_Prefix") + user + settings.get("Auth_Postfix")
-            Base = settings.get("Auth_Base")
-            Scope = ldap.SCOPE_SUBTREE
-            Attrs = [settings.get("Auth_Grp_Attr")]
-            UsrAttr = settings.get("Auth_Usr_Attr")
-            if settings.get("Auth_Secure") == 'True':
-                if settings.get("Auth_Cert") != 'None' and settings.get("Auth_Cert") is not None:
-                    ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, settings.get("Auth_Cert"))
-                    ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
-                else:
-                    ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-            l = ldap.initialize(Server)
-            l.set_option(ldap.OPT_REFERRALS, 0)
-            l.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
-            if settings.get("Auth_Secure") == 'True':
-                l.start_tls_s()
-            l.bind_s(DN, password, ldap.AUTH_SIMPLE)
-            r = l.search(Base, Scope, UsrAttr + '=' + user, Attrs)
-            result = l.result(r, 9)
-            # TODO: remove or improve this try block. unbind() will throw ldap.LDAPError if it's called twice;
-            # maybe that's why it's here. Would that ever happen here?
-            try:
-                l.unbind()
-            except:
-                pass
+            dn = "cn=" + user + ",ou=accounts,ou=caedm,dc=et,dc=byu,dc=edu"
+            searchBase = "dc=et,dc=byu,dc=edu"
+            groupAttr = "cn"
+            ldap_conn = ldap.initialize(Server)
+            ldap_conn.start_tls_s()
+            ldap_conn.bind_s(dn, password, ldap.AUTH_SIMPLE) # login
+            r = ldap_conn.search(searchBase, ldap.SCOPE_SUBTREE, "memberuid=" + user)
+            results = ldap_conn.result(r,9)
+            groups = list(map(lambda grptuple : grptuple[1][groupAttr][0].decode("utf-8"), results[1]))
+            ldap_conn.unbind()
+            # get user info
 
-            # get user groups
-            AttrsDict = result[1][0][1]
-            for key in AttrsDict:
-                for x in AttrsDict[key]:
-                    # take only the substring after the first =, and before the comma
-                    groups.append(x[x.find('=') + 1:x.find(',')])
+            # DN = settings.get("Auth_Prefix") + user + settings.get("Auth_Postfix")
+            # Base = settings.get("Auth_Base")
+            # Scope = ldap.SCOPE_SUBTREE
+            # Attrs = [settings.get("Auth_Grp_Attr")]
+            # UsrAttr = settings.get("Auth_Usr_Attr")
+            # if settings.get("Auth_Secure") == 'True':
+            #     if settings.get("Auth_Cert") != 'None' and settings.get("Auth_Cert") is not None:
+            #         ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, settings.get("Auth_Cert"))
+            #         ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+            #     else:
+            #         ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+            # l = ldap.initialize(Server)
+            # l.set_option(ldap.OPT_REFERRALS, 0)
+            # l.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+            # if settings.get("Auth_Secure") == 'True':
+            #     l.start_tls_s()
+            # l.bind_s(DN, password, ldap.AUTH_SIMPLE)
+            # r = l.search(Base, Scope, UsrAttr + '=' + user, Attrs)
+            # result = l.result(r, 9)
+            # # TODO: remove or improve this try block. unbind() will throw ldap.LDAPError if it's called twice;
+            # # maybe that's why it's here. Would that ever happen here?
+            # try:
+            #     l.unbind()
+            # except:
+            #     pass
+            #
+            # # get user groups
+            # AttrsDict = result[1][0][1]
+            # for key in AttrsDict:
+            #     for x in AttrsDict[key]:
+            #         # take only the substring after the first =, and before the comma
+            #         groups.append(x[x.find('=') + 1:x.find(',')])
 
         return groups
 
