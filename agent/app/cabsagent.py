@@ -1,4 +1,4 @@
-#!/usr/bin/python2 -u
+#!/usr/bin/python3 -u
 # This is the test Agent for CABS for linux
 
 # Workaround until a bugfix in pyinstaller gets released on pypi.
