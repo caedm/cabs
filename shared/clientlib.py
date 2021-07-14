@@ -98,21 +98,20 @@ class Clientlib:
         # read message and save connection socket
 
         # build request obj here
-        poolRequest = PoolReq(self.settings.get("client_version"), self.settings.get("client_name"),
+        poolRequest = PoolReq(self.settings.get("Client_Version"), self.settings.get("Client_Name"),
                               self.getRGSversion())
         clientReq = ClientReq(poolRequest, RequestTypes.pr, user, password)
 
         s_wrapped = self.send_message(Clientlib.msgtostr(clientReq) + '\r\n', host, port)
-        response = self.read_response(s_wrapped, retry, lambda: self.getPools(user, password, host, port, retry + 1))
+        poolresponse = self.read_response(s_wrapped, retry, lambda: self.getPools(user, password, host, port, retry + 1))
 
-        poolresponse = json.loads(response, object_hook=Clientlib.decode)
         poolsliterals = poolresponse.content.pools_string.split('\n')
         poolset = set()
         for literal in poolsliterals:
             if literal:
                 poolset.add(literal_eval(literal))
 
-        return (poolresponse.version_err_msg, poolset)
+        return poolresponse.version_err_msg, poolset
 
     def getMachine(self, user, password, pool, host, port, retry=0, reconnect_preference=Reconnect.NotSpecified):
         if pool == '' or pool is None:
@@ -125,11 +124,7 @@ class Clientlib:
         # what should the response be? return the machine and also a flag if you have an existing machine.
         # No preference ->
         # either return the machine or the choice
-        try:
-            response = json.loads(response, object_hook=Clientlib.decode)
-            return (response.content.existing_conn, response.content.machine)
-        except Exception as e:
-            print(e)
+        return response.content.existing_conn, response.content.machine
 
     def send_message(self, message, host, port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -153,14 +148,17 @@ class Clientlib:
             if chunk == '':
                 break
         # parse out my broker response
-        response = json.loads(response, object_hook=Clientlib.decode)
-        if response.response_type == ResponseTypes.error:
-            if response.content == "Err:RETRY" and retry < 6:
-                sleep(retry)
-                return callback()
-            else:
-                raise ServerError(response.content)
-        return response
+        try:
+            response = json.loads(response, object_hook=Clientlib.decode)
+            if response.response_type == ResponseTypes.error:
+                if response.content == "Err:RETRY" and retry < 6:
+                    sleep(retry)
+                    return callback()
+                else:
+                    raise ServerError(response.content)
+            return response
+        except:
+            raise ServerError("Unknown Error")
 
     def check_file(self, path_to_file):
         return os.path.isfile(path_to_file)
