@@ -47,8 +47,9 @@ settings = { "Host_Addr":'broker',
              "Agent_Priv_Key":None,
              "Interval":1,
              "Process_Listen":None,
-             "Hostname":None }
+             "Hostname":"cabs.et.byu.edu" }
 checks = []
+
 
 def ps_check():
     # get the status of a process that matches settings.get("Process_Listen")
@@ -70,7 +71,7 @@ def ps_check():
             return "Okay"
     return ps_name + " not connected"
 
-if os.name == "posix":
+if os.name == "posix": #is this necessary?
     def user_list():
         p = subprocess.Popen(["who"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, err = p.communicate()
@@ -184,31 +185,35 @@ else:
         reactor.callFromThread(reactor.stop)
 
 def heartbeat_loop():
-    s = scheduler(time, sleep)
+    sched = scheduler(time, sleep)
     #read config for time interval, in seconds
     print("Starting heartbeat. Pulsing every {0} seconds.".format(settings.get("Interval")))
     while True:
         if requestStop:
             break
-        s.enter(int(settings.get("Interval")), 1, heartbeat, ())
-        s.run()
+        sched.enter(int(settings.get("Interval")), 1, heartbeat, ())
+        sched.run()
 
 def heartbeat():
     content = "spr:{}:{}{}\r\n".format(getStatus(), settings["Hostname"],
             "".join(':' + user for user in user_list()))
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((settings.get("Host_Addr"), int(settings.get("Agent_Port"))))
+        s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1) #edited this to stop doubling up error
+        
         if settings.get("Broker_Cert") is None:
             s_wrapped = s 
         else:
-            s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=settings["Broker_Cert"], \
-                    ssl_version=ssl.PROTOCOL_SSLv23)
-
+            #ssl.SSLContext.load_cert_chain(settings["Broker_Cert"])
+            s_wrapped = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT) 
+            s_wrapped.check_hostname= False
+            s_wrapped.load_verify_locations(settings["Broker_Cert"]) #edited this #might need ".load_cert_chain(settings["Broker_Cert"]
+            s_wrapped = s_wrapped.wrap_socket(s,False,True,True,None,None)
+            s_wrapped.connect((settings.get("Host_Addr"), int(settings.get("Agent_Port"))))
             if sys.version_info[0] < 3: #Make sure it is python2/3 compatible
-                s_wrapped.sendall(content)
+                s_wrapped.send(content)
             else:
-                s_wrapped.sendall(bytes(content, 'utf-8'))
+                s_wrapped.send(bytes("Good job", 'utf-8'))
         print("Told server " + content)
     except:
         traceback.print_exc()
@@ -264,6 +269,8 @@ def readConfigFile():
                     continue
                 settings[key] = val
             f.close()
+        print(settings)
+            
 
     for key in ("Broker_Cert", "Agent_Cert"):
         if settings[key] is not None and not os.path.isabs(settings[key]):
@@ -289,7 +296,7 @@ def startHeartbeat():
 
 def checkHeartbeat():
     for thread in threading.enumerate():
-        if thread.getName() == "heartbeat":
+        if thread.name == "heartbeat":
             print("Heartbeat is still running")
             return
     print("Heartbeat thread stopped, restarting heartbeat")
@@ -313,7 +320,7 @@ def startHeartbeatSupervisor():
 def start():
     application_path = os.path.dirname(os.path.abspath(
         sys.executable if getattr(sys, 'frozen', False) else __file__))
-    default_config = os.path.join(application_path, 'cabsagent.conf')
+    default_config = os.path.join(application_path, 'cabsagent.conf') #application path is the directory of this
     global argv
     parser = ArgumentParser()
     parser.add_argument('-d', '--debug', action='store_true')
@@ -330,7 +337,7 @@ def start():
     else:
         start_ssl_cmd_server()
     print("Running the reactor")
-    reactor.run()
+    reactor.run() #Error here
 
 if __name__ == "__main__":
     start()
