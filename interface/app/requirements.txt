@@ -1,4 +1,4 @@
-python-ldap==2.4.19
+python-ldap==3.4.0
 service-identity==16.0.0
 Django==1.8.2
 django-auth-ldap==1.2.6
