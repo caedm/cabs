@@ -10,9 +10,9 @@ Connection Automation/Brokerage System
 - Setup settings are stored in a configuration file.
 
 ## Installation
-Install Debian
+Install Debian 10
 
-run `apt install sudo git vim python-pip libmysqlclient-dev libpython2.7-dev libldap2-dev libsasl2-dev mysql-server mysql-client` for Debian 8, or `apt install sudo git vim python-pip libmariadb-dev-compat libmariadb-dev libpython2.7-dev libldap2-dev libsasl2-dev mariadb-server mariadb-client` for Debian 10.
+run `apt install sudo git vim python3-pip libmariadb-dev-compat libmariadb-dev libldap2-dev libsasl2-dev mariadb-server mariadb-client`.
 
 give sudo privileges to your user with visudo
 

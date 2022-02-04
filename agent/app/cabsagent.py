@@ -1,5 +1,5 @@
-#!/usr/bin/python2 -u
-#This is the test Agent for CABS for linux
+#!/usr/bin/python3 -u
+# This is the test Agent for CABS for linux
 
 # Workaround until a bugfix in pyinstaller gets released on pypi.
 # See https://github.com/pyinstaller/pyinstaller/commit/f788dec36b8d55f4518881be9f4188ad865306ec
@@ -11,6 +11,7 @@ from subprocess import check_output, check_call
 import re
 import signal
 import traceback
+import subprocess
 from sched import scheduler
 from time import time, sleep
 from threading import Thread, Timer
@@ -35,9 +36,10 @@ STATUS_PS_NOT_RUNNING = 1
 STATUS_PS_NOT_CONNECTED = 2
 STATUS_PS_OK = 3
 
-#global heartbeat_pid
+# global heartbeat_pid
 requestStop = False
 
+<<<<<<< HEAD
 settings = { "Host_Addr":'broker',
              "Agent_Port":18182,
              "Command_Port":18185,
@@ -51,7 +53,54 @@ settings = { "Host_Addr":'broker',
 checks = []
 
 
+=======
+settings = {
+    "Host_Addr": 'broker',
+    "Agent_Port": 18182,
+    "Command_Port": 18185,
+    "Cert_Dir": "/etc/ssl/certs",
+    "Broker_Cert": None,
+    "Agent_Cert": None,
+    "Agent_Priv_Key": None,
+    "Interval": 1,
+    "Checks_Dir": None,
+    "Process_Listen": None,
+    "Hostname": None,
+    "Log_Level": None,
+    "Override_Process_Check": None,
+    "Process_Restart_Script": None, }
+
+if os.name == "nt":
+    settings["Cert_Dir"] = ""
+checks = []
+
+
+def custom_check():
+    # use the user-specified script to check for the status of a process.
+    if settings.get("Override_Process_Check") is None:
+        return "no Override_Process_Check set"
+
+    if settings.get("Checks_Dir") is not None:
+        script_src = os.path.join(settings.get("Checks_Dir"), settings.get("Override_Process_Check"))
+    else:
+        script_src = settings.get("Override_Process_Check")
+
+    # 3 possible states - not found, not running, not connected, okay
+    try:
+        return subprocess.check_output(script_src, shell=True).decode().strip()
+    except:
+        return "error in custom process check"
+
+
+>>>>>>> 834b1a0758f95977b6b3f04a6ed218115382774a
 def ps_check():
+    if settings.get("Override_Process_Check") is not None:
+        return custom_check()
+    else:
+        return default_check()
+
+
+def default_check():
     # get the status of a process that matches settings.get("Process_Listen")
     # then check to make sure it has at least one listening conection on windows, you can't
     # search processes by yourself, so Popen "tasklist" to try to find the pid for the name
@@ -67,15 +116,20 @@ def ps_check():
         return ps_name + " not running"
     for conn in process.connections():
         if conn.status in [psutil.CONN_ESTABLISHED, psutil.CONN_SYN_SENT,
-                psutil.CONN_SYN_RECV, psutil.CONN_LISTEN]:
+                           psutil.CONN_SYN_RECV, psutil.CONN_LISTEN]:
             return "Okay"
     return ps_name + " not connected"
 
+<<<<<<< HEAD
 if os.name == "posix": #is this necessary?
+=======
+
+if os.name == "posix":
+>>>>>>> 834b1a0758f95977b6b3f04a6ed218115382774a
     def user_list():
         p = subprocess.Popen(["who"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, err = p.communicate()
-        if sys.version_info[0] < 3: #Make sure it is python2/3 compatible
+        if sys.version_info[0] < 3:  # Make sure it is python2/3 compatible
             output = output.encode('utf-8')
         else:
             output = str(output, 'utf-8')
@@ -88,42 +142,55 @@ if os.name == "posix": #is this necessary?
                 pass
         return userlist
 
+
     def find_process():
-        #assume a platform where we can just search with psutil
+        # assume a platform where we can just search with psutil
         for ps in psutil.process_iter():
             try:
                 if ps.name() == settings.get("Process_Listen"):
                     return ps
             except:
-                #we probably dont have permissions to access the ps.name()
+                # we probably dont have permissions to access the ps.name()
                 pass
+
 
     def reboot():
         subprocess.call(["shutdown", "-r", "now"])
 
+
     def restart():
-        subprocess.call(["init", "2"])
-        Timer(10, subprocess.call, (["init", "5"],)).start()
-        #subprocess.call(["init", "5"])
+        if settings.get("Process_Restart_Script") is not None:
+            restart_src = settings.get("Process_Restart_Script")
+            if settings.get("Checks_Dir") != None:
+                restart_src = os.path.join(settings.get("Checks_Dir"), settings.get("Process_Restart_Script"))
+            subprocess.check_output(restart_src, shell=True)
+        else:
+            subprocess.call(["init", "2"])
+            Timer(10, subprocess.call, (["init", "5"],)).start()
+        # subprocess.call(["init", "5"])
 
 
     def win_info(user, display):
         if argv.debug:
             template = ('0x01e00003 -1 0    {}  1024 24   rgsl-07 Top Expanded Edge Panel\n'
-                    '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
+                        '0x01e00024 -1 0    1536 1024 24   rgsl-07 Bottom Expanded Edge Panel\n')
             return template.format('-48' if isfile('/tmp/no_panel') else '0')
         else:
             return check_output("script -c 'DISPLAY={} sudo -u {} wmctrl -lG' /dev/null"
-                    "| grep -v Script".format(display, user), shell=True)
+                                "| grep -v Script".format(display, user), shell=True)
 
             # We can only check if there's a panel when someone is logged in. If the user logs out, we
+
+
     # want to remember that there wasn't a panel.
     no_panel = False
+
+
     def panel_check():
         global no_panel
         print('running panel check')
         graphical_users = [line.split() for line in check_output("who").split(b'\n')
-                if b" :0" in line]
+                           if b" :0" in line]
         if graphical_users:
             user = graphical_users[0][0]
             display = graphical_users[0][1]
@@ -135,58 +202,73 @@ if os.name == "posix": #is this necessary?
 
         return "no_panel" if no_panel else "Okay"
 
+
     checks.append(panel_check)
 
 else:
     assert os.name == "nt"
-    #import win32service
-    #import win32event
-    #import servicemanager
     import win32api
     import win32serviceutil
-    from getpass import getuser
+    import wmi
+    import pythoncom
+
 
     def user_list():
-        return [getuser()]
+        pythoncom.CoInitialize()
+        conn = wmi.WMI()
+        users_query = "select * from Win32_Process where name = 'explorer.exe'"
+        users_set = set()
+        for username in conn.query(users_query):
+            users_set.add(username.GetOwner()[2])
+        return list(users_set)
+
 
     def find_process():
         p = psutil.Popen("tasklist", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
+                         stderr=subprocess.PIPE)
         out, err = p.communicate()
         l_start = out.find(settings.get("Process_Listen"))
         l_end = out.find('\n', l_start)
         m = re.search(r"\d+", out[l_start: l_end])
         if m is None:
             return None
-        return  psutil.Process(int(m.group(0)))
+        return psutil.Process(int(m.group(0)))
 
-    #def heartbeat_loop():
-    #    if len(sys.argv) == 1:
-    #        servicemanager.Initialize()
-    #        servicemanager.PrepareToHostSingle(AgentService)
-    #        servicemanager.StartServiceCtrlDispatcher()
-    #    else:
-    #        win32serviceutil.HandleCommandLine(AgentService)
 
     def restart():
-        print("restarting")
-        if settings["Process_Listen"] is None:
+        if settings.get("Process_Restart_Script") is not None:
+            restart_src = settings.get("Process_Restart_Script")
+            if settings.get("Checks_Dir") is not None:
+                retart_src = settings.get("Checks_Dir") + "\\" + settings.get("Process_Restart_Script")
+            try:
+                subprocess.check_output(restart_src, shell=True)
+            except:
+                print("failure in custom restart execution")
+        elif settings["Process_Listen"] is None:
             print("no process to restart")
             return
-        #print("win32serviceutil.RestartService({})".format(settings["Process_Listen"]))
-        win32serviceutil.RestartService(settings["Process_Listen"].rstrip(".exe"))
+        else:
+            win32serviceutil.RestartService(settings["Process_Listen"].rstrip(".exe"))
+
 
     def reboot():
         print("rebooting")
         win32api.InitiateSystemShutdown(None, None, 0, 1, 1)
 
+
     def stop():
         requestStop = True
         reactor.callFromThread(reactor.stop)
 
+
 def heartbeat_loop():
+<<<<<<< HEAD
     sched = scheduler(time, sleep)
     #read config for time interval, in seconds
+=======
+    s = scheduler(time, sleep)
+    # read config for time interval, in seconds
+>>>>>>> 834b1a0758f95977b6b3f04a6ed218115382774a
     print("Starting heartbeat. Pulsing every {0} seconds.".format(settings.get("Interval")))
     while True:
         if requestStop:
@@ -194,16 +276,19 @@ def heartbeat_loop():
         sched.enter(int(settings.get("Interval")), 1, heartbeat, ())
         sched.run()
 
+
 def heartbeat():
     content = "spr:{}:{}{}\r\n".format(getStatus(), settings["Hostname"],
-            "".join(':' + user for user in user_list()))
+                                       "".join(':' + user for user in user_list()))
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1) #edited this to stop doubling up error
         
         if settings.get("Broker_Cert") is None:
-            s_wrapped = s 
+            s_wrapped = s
+            s_wrapped.sendall(content.encode())
         else:
+<<<<<<< HEAD
             #ssl.SSLContext.load_cert_chain(settings["Broker_Cert"])
             s_wrapped = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT) 
             s_wrapped.check_hostname= False
@@ -212,25 +297,35 @@ def heartbeat():
             s_wrapped.connect((settings.get("Host_Addr"), int(settings.get("Agent_Port"))))
             if sys.version_info[0] < 3: #Make sure it is python2/3 compatible
                 s_wrapped.send(content)
+=======
+            s_wrapped = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs=settings["Broker_Cert"], \
+                                        ssl_version=ssl.PROTOCOL_SSLv23)
+
+            if sys.version_info[0] < 3:  # Make sure it is python2/3 compatible
+                s_wrapped.sendall(content)
+>>>>>>> 834b1a0758f95977b6b3f04a6ed218115382774a
             else:
                 s_wrapped.send(bytes("Good job", 'utf-8'))
         print("Told server " + content)
     except:
         traceback.print_exc()
 
+
 def getStatus():
     if argv.debug and isfile('/tmp/oldstatus'):
         return "rgsender3"
 
     problems = [result for result in [func() for func in checks]
-            if result != "Okay"]
+                if result != "Okay"]
     return ",".join(problems) if problems else "Okay"
+
 
 class CommandHandler(LineOnlyReceiver):
     """Recognized commands:
     restart_rgsender
     reboot
     """
+
     def lineReceived(self, line):
         command = line.strip()
         print("received command: " + command)
@@ -238,6 +333,7 @@ class CommandHandler(LineOnlyReceiver):
             restart()
         elif command == "reboot":
             reboot()
+
 
 def start_ssl_cmd_server():
     with open(settings["Agent_Cert"], 'r') as certfile:
@@ -251,6 +347,7 @@ def start_ssl_cmd_server():
     authority = Certificate.loadPEM(authdata)
     factory = Factory.forProtocol(CommandHandler)
     reactor.listenSSL(int(settings.get("Command_Port")), factory, certificate.options(authority))
+
 
 def readConfigFile():
     if isfile(argv.config):
@@ -279,12 +376,14 @@ def readConfigFile():
         settings["Agent_Priv_Key"] = settings["Agent_Cert"]
 
     if settings["Hostname"] is None:
-        #If we want a fqdn we can use socket.gethostbyaddr(socket.gethostname())[0]
+        # If we want a fqdn we can use socket.gethostbyaddr(socket.gethostname())[0]
         settings["Hostname"] = socket.gethostname()
+
 
 def stop():
     requestStop = True
     reactor.callFromThread(reactor.stop)
+
 
 def startHeartbeat():
     readConfigFile()
@@ -294,6 +393,7 @@ def startHeartbeat():
     t = Thread(target=heartbeat_loop, name="heartbeat")
     t.start()
 
+
 def checkHeartbeat():
     for thread in threading.enumerate():
         if thread.name == "heartbeat":
@@ -301,7 +401,8 @@ def checkHeartbeat():
             return
     print("Heartbeat thread stopped, restarting heartbeat")
     startHeartbeat()
-        
+
+
 def heartbeatSupervisor():
     s = scheduler(time, sleep)
     threadCountInterval = 20
@@ -312,10 +413,12 @@ def heartbeatSupervisor():
         s.enter(threadCountInterval, 1, checkHeartbeat, ())
         s.run()
 
+
 def startHeartbeatSupervisor():
     t_count = Thread(target=heartbeatSupervisor, name="supervisor")
     t_count.daemon = True
     t_count.start()
+
 
 def start():
     application_path = os.path.dirname(os.path.abspath(
@@ -330,7 +433,6 @@ def start():
     startHeartbeat()
     startHeartbeatSupervisor()
 
-
     if settings.get("Agent_Priv_Key") is None:
         endpoint = endpoints.TCP4ServerEndpoint(reactor, int(settings.get("Command_Port")))
         endpoint.listen(Factory.forProtocol(CommandHandler))
@@ -338,6 +440,7 @@ def start():
         start_ssl_cmd_server()
     print("Running the reactor")
     reactor.run() #Error here
+
 
 if __name__ == "__main__":
     start()

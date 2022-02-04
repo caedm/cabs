@@ -1,0 +1,79 @@
+h1 {
+    text-align: center;
+}
+
+table {
+    margin: auto;
+    width: 80%;
+}
+
+form {
+    margin-top: 35px;
+}
+
+.filter {
+    margin: 0 auto;
+    width: max-content;
+    padding: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+.red {
+    background-color: #ffecec;
+}
+
+.yellow {
+    background-color: #fdf7e0;
+}
+
+form.in-table {
+    margin: 0px;
+}
+
+.pure-button {
+    margin: 3px;
+}
+
+.pure-g {
+    letter-spacing: inherit;
+    text-rendering: optimizelegibility;
+}
+
+.button-scary {
+    background: rgb(255, 120, 120);
+}
+
+.cramped-table input {
+    width: 50px;
+    font-size: 0.9em;
+}
+
+.cramped-table {
+    width: 94%;
+    font-size: 0.9em;
+}
+
+.cramped-table td {
+    padding: 0.3em 0.8em;
+}
+
+.clickable:hover {
+    cursor: pointer;
+}
+
+.time {
+    width: 180px;
+}
+
+.graph-holder {
+    display: flex;
+    justify-content: space-evenly;
+    flex-wrap: wrap;
+}
+
+.graph-holder img {
+    padding: 10px;
+}

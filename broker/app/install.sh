@@ -8,10 +8,11 @@ fi
 DIR=/opt/cabsbroker
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
-pip install -r requirements.txt
-mkdir -p $DIR
+pip3 install -r requirements.txt
+mkdir -p $DIR/shared
 install -v cabsbroker.py $DIR
 install -v setupDatabase.py $DIR
+install -v shared/* $DIR/shared
 if ! [ -f $DIR/cabsbroker.conf ]; then
     install -vm 644 cabsbroker.conf $DIR
 else

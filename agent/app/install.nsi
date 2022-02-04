@@ -40,26 +40,19 @@ Section "CABS Agent (required)"
   
   # Set output path to the installation directory.
   SetOutPath $INSTDIR
-  
+  SetRegView 64
   # Put file there
   File "cabsagentsvc.exe"
   
   #Copy over the other items
   CopyFiles $EXEDIR\cabsagent.conf $INSTDIR
-  CopyFiles $EXEDIR\version.txt $INSTDIR
   CreateDirectory $INSTDIR\checks
-  CopyFiles $EXEDIR\checks\* $INSTDIR\checks
+  CopyFiles $EXEDIR\checks\rdp_check.exe $INSTDIR\checks
   CopyFiles $EXEDIR\*.pem $INSTDIR
 
-  #FindFirst $0 $1 $EXEDIR\*.pem
-  #  DetailPrint 'Found "$EXEDIR\$1"'
-  #  CopyFiles $EXEDIR\$1 $INSTDIR
-  #FindClose $0
-  
   #Install the Service
-  Exec '"$INSTDIR\cabsagentsvc.exe" --startup=auto install'
-  Exec '"$INSTDIR\cabsagentsvc.exe" start'
-
+  Exec '"$INSTDIR\cabsagent.exe" --startup=auto install'
+  Exec '"$INSTDIR\cabsagent.exe" start'
 
   # Write the installation path into the registry
   WriteRegStr HKLM SOFTWARE\CABS_agent "Install_Dir" "$INSTDIR"
@@ -73,12 +66,12 @@ SectionEnd
 Section "Uninstall"
   # TODO make it actually remove all the files it installs
   # Remove registry keys
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_agent"
+  SetRegView 64
+  DeleteRegKey HKLM Software\Microsoft\Windows\CurrentVersion\Uninstall\CABS_agent
   DeleteRegKey HKLM SOFTWARE\CABS_agent
-
   Delete $INSTDIR\uninstall.exe
- 
-  Delete $INSTDIR\cabsagentsvc.exe
+  Delete &INSTDIR\checks\rgs_check.exe
+  Delete $INSTDIR\cabsagent.exe
   Delete $INSTDIR\cabsagent.conf
   FindFirst $0 $1 $INSTDIR\*.pem
 	Delete $INSTDIR\$1

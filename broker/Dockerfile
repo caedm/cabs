@@ -7,11 +7,11 @@ RUN echo mysql-server mysql-server/root_password_again password mypassword \
 
 # install mysql, python, dependencies for pip modules
 RUN apt-get -y update && apt-get -y install mysql-server \
-    python python-pip python-dev build-essential libmysqlclient-dev \
+    python3 python3-pip python3-dev build-essential libmysqlclient-dev \
     libldap2-dev libsasl2-dev libssl-dev
 
 COPY app/requirements.txt /tmp
-RUN pip install -r /tmp/requirements.txt
+RUN pip3 install -r /tmp/requirements.txt
 
 # run
 RUN sed -i 's/^bind-address/#bind-address/' /etc/mysql/my.cnf

@@ -1,4 +1,4 @@
-pyinstaller --onefile --clean --distpath build\pyinstaller\dist ^
+pyinstaller --hiddenimport=win32timezone --onefile --clean --distpath build\pyinstaller\dist ^
     --workpath build\pyinstaller --specpath build\pyinstaller ^
     app\cabsagentsvc.py
 pyinstaller --onefile --clean --distpath build\pyinstaller\dist ^
