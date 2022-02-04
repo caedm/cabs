@@ -845,18 +845,18 @@ class MainWindow(wx.Frame):
                 command.append("-Rgreceiver.Session.0.IsConnectOnStartup=1")
                 command.append("-Rgreceiver.Session.0.Hostname="+address)
                 command.append("-Rgreceiver.Session.0.Username="+username)
-                if sys.platform.startswith("linux"):
-                    #linux can't send XOR passwords, so in it's call trace, the password will be plaintext
-                    #this is only on the local machine though, the network packets are encrypted
-                    command.append("-Rgreceiver.Session.0.Password="+password)
-                    command.append("-Rgreceiver.Session.0.PasswordFormat=Clear")
-                elif sys.platform.startswith("win"):
+                # if sys.platform.startswith("linux"):
+                #     #linux can't send XOR passwords, so in it's call trace, the password will be plaintext
+                #     #this is only on the local machine though, the network packets are encrypted
+                #     command.append("-Rgreceiver.Session.0.Password="+password)
+                #     command.append("-Rgreceiver.Session.0.PasswordFormat=Clear")
+                # elif sys.platform.startswith("win"):
                     #find XOR windows password
-                    XORpass = ""
-                    for i in range(len(password)):
-                        XORpass += hex(ord(password[i])^129)[2:]
-                    command.append("-Rgreceiver.Session.0.Password="+XORpass)
-                    command.append("-Rgreceiver.Session.0.PasswordFormat=XOR")
+                XORpass = ""
+                for i in range(len(password)):
+                    XORpass += hex(ord(password[i])^129)[2:]
+                command.append("-Rgreceiver.Session.0.Password="+XORpass)
+                command.append("-Rgreceiver.Session.0.PasswordFormat=XOR")
                 
                 command.extend(self.tab1.rgsSettings())
                 command.extend(self.tab2.rgsSettings())
