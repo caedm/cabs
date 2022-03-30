@@ -1,0 +1,7 @@
+gatewayhostname:s:rdpgateway.et.byu.edu
+gatewayusagemethod:i:1
+promptcredentialonce:i:1
+gatewayprofileusagemethod:i:1
+prompt for credentials:i:0
+username:s:et.byu.edu\haydent
+full address:s:CBMOONSHOT1C16

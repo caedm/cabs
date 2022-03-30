@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 import socket, ssl
 import subprocess
 import sys
@@ -608,19 +608,23 @@ class DomainAndServer(wx.Panel):
 class PickPoolDialog(wx.Dialog):
     def __init__(self, parent, pools):
         wx.Dialog.__init__(self, parent)
-        self.pools = pools
+        self.pools = pools 
         self.choice = None
-        self.SetMinSize(wx.Size(135, 150))
+        self.SetMinSize(wx.Size(200000, 150))
+        self.SetTitle("Pools")
+        #self.SetSize()
         self.InitUI()
         
     def InitUI(self):
         self.panel = wx.Panel(self)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        for pool in sorted(self.pools):
+        print(type(self.pools))
+        for pool in self.pools:
             #Only availible in wx 2.9.2 or greater
             #self.sizer.Add(wx.CommandLinkButton(self.panel, wx.ID_ANY, mainLabel=pool[0], note=pool[1]),1,wx.EXPAND)
             #labelstring = '_'*( (len(pool[1])/2) - (len(pool[0])/2) ) + pool[0] + '_'*( (len(pool[1])/2) - (len(pool[0])/2) ) + '\n\n' + pool[1]
-            labelstring = pool[0] + ' : ' + pool[1]
+            #labelstring = pool.split("\'")[1] #could we edit the SQL database so to make the labels easier
+            labelstring = pool
             self.sizer.Add(wx.Button(self.panel, ID_POOL_BUTTON, label=labelstring, style=wx.BORDER_NONE), 1, wx.EXPAND | wx.ALL, 3)
         self.sizer.SetSizeHints(self)    # Shawn added Aug 2020
         self.panel.Bind(wx.EVT_BUTTON, self.setChoice)
@@ -710,7 +714,8 @@ class MainWindow(wx.Frame):
 
     def CheckSettings(self):
         if (settings.get("SSL_Cert") is not None) and (settings.get("SSL_Cert") != 'None'):
-            ssl_cert = os.path.dirname(os.path.abspath(__file__)) + "/" + settings.get("SSL_Cert")
+            #ssl_cert = os.path.dirname(os.path.abspath(__file__)) + "/" + settings.get("SSL_Cert")
+            ssl_cert = "c:\\Users\\Administrator/cert.pem"
             if not isfile(ssl_cert):
                 wx.MessageBox('Could not find the SSL certificate at\n{0}'.format(ssl_cert), 'Error', wx.CANCEL | wx.ICON_ERROR)
     
@@ -743,8 +748,8 @@ class MainWindow(wx.Frame):
                 port = self.notebook.port.GetValue()
 
             try:
-                version_err_msg, pools = clientlib.getPools(username, password, server, port)
-                self.poolDialog(pools, username, password, server, port, version_err_msg=version_err_msg)
+                pools = clientlib.getPools(username, password, server, port) #error is here
+                self.poolDialog(pools, username, password, server, port) #version_err_msg=version_err_msg
             #except ServerError as e:
             #    message = showError(e[0])
             #    dlg = wx.MessageDialog(self, message, 'Error', wx.OK | wx.ICON_ERROR)
@@ -767,10 +772,12 @@ class MainWindow(wx.Frame):
             self.tab5.load(True)
             self.tab6.load(True)
     
-    def poolDialog(self, pools, username, password, server, port, version_err_msg=None):
-        if version_err_msg:
-            version_dlg = wx.MessageDialog(self, message=version_err_msg, style=wx.CENTRE | wx.OK)
-            version_dlg.ShowModal()
+    def poolDialog(self, pools, username, password, server, port):
+        #I don't believe this is necessary considering the try in the previous function
+        #thus i removed the arguement version_err_msg from the poolDialog method
+        #if version_err_msg:
+        #    version_dlg = wx.MessageDialog(self, message=version_err_msg, style=wx.CENTRE | wx.OK)
+        #    version_dlg.ShowModal()
 
         if pools:
             dlg = PickPoolDialog(self, pools)
@@ -779,20 +786,46 @@ class MainWindow(wx.Frame):
             dlg.Destroy()
             if poolchoice is None:
                 return
-
             try:
-                existing_con, machine = clientlib.getMachine(username, password, poolchoice, server, port, reconnect_preference=Reconnect.NotSpecified)
-                if existing_con:
+                machine = clientlib.getMachine(username, password, poolchoice.split("\'")[1], server, port, reconnect_preference=Reconnect.NotSpecified)
+                # if(len(machine.content) is not 1):
+                #     raise Exception("Multiple Arguements or 0 Arguments were returned instead of a single machine")
+                # machine = machine.pop()
+                # print(machine)
+                print(machine.existing_conn)
+                if machine.existing_conn:
                     msg = "Existing Session Found.\nIf you choose 'No' to log into a new machine in this pool, all of your existing sessions in this pool will be terminated.\nThis means that you will be logged out of all other machines in this pool, and any work that has not been saved will be lost. Would you like to Reconnect?"
                     recon_dlg = wx.MessageDialog(self,message=msg,caption="",style = wx.CENTRE|wx.YES_NO|wx.YES_DEFAULT|wx.CANCEL)
-                    button = recon_dlg.showModal()
+                    button = recon_dlg.ShowModal()
                     if button == wx.ID_YES:
-                        existing_con, machine = clientlib.getMachine(username, password, poolchoice, server, port, reconnect_preference=Reconnect.Do)
+                        machine = clientlib.getMachine(username, password, poolchoice, server, port, reconnect_preference=Reconnect.Do)
                     if button == wx.ID_NO:
-                        existing_con, machine = clientlib.getMachine(username, password, poolchoice, server, port, reconnect_preference=Reconnect.Dont)
+                        machine = clientlib.getMachine(username, password, poolchoice, server, port, reconnect_preference=Reconnect.Dont)
                     else:
                         # cancel pushed.
-                        return self.poolDialog(self, pools, username, password, server, port, version_err_msg=version_err_msg)
+                        return self.poolDialog(self, pools, username, password, server, port)
+                else:
+                    temp_file_location = os.environ['USERPROFILE'] + "/AppData/Local/Temp/" + str(int(time.time())) + ".rdp"
+                    #temp_file_location ='lala'
+                    #Info about this section can be found at: doc.microsoft.com/en-us/window-server/remote/remote-desktop-services/clients/rdp-files
+                    with open(temp_file_location, "w") as f:
+                        f.write("gatewayhostname:s:rdpgateway.et.byu.edu\n") #specifies the RD Gateway host name
+                        f.write("gatewayusagemethod:i:1\n") #Specifies when to use an RD Gateway for the connection 1="Always use RDP Gateway"
+                        f.write("promptcredentialonce:i:1\n") #Determines whether a user's credentials are saved and used for both RDP Gateway 1="same credentials used"
+                        f.write("gatewayprofileusagemethod:i:1\n") #Specifies whether to use default RD Gate. 1="explicit settings set by user"
+                        f.write("prompt for credentials:i:0\n") #determines whether a user's credentials are saved and used for both the RD Gateway and the remote computer. 0="Remote session will not use the same credentials" Should be 1?
+                        f.write("full address:s:%s\n" % machine.machine) #PC Name: This setting specifies the name of IP address of the remote computer that you want to connect to. Required for RDP file.
+                        f.write('username:s:et.byu.edu\\%s' % username)
+                    # rgscommand = ["open", "-n", "-F", "-a", "/Applications/Microsoft Remote Desktop.app/Contents/MacOS/Microsoft Remote Desktop", temp_file_location]
+                    # The following saves the user's CAEDM credentials in the local Windows credentials cache, and then deletes the credentials after the RDP session is closed
+                    #subprocess.Popen("cmdkey /add:rdpgateway.et.byu.edu /user:et.byu.edu\\%s /pass:%s" % (username, password))
+                    #subprocess.Popen("cmdkey /add:%s /user:et.byu.edu\\%s /pass:%s" % (machine.machine, username, password))
+                   # p = subprocess.Popen("mstsc %s" % temp_file_location)
+                    subprocess.Popen("mstsc %s"  % temp_file_location)
+                    print(temp_file_location)
+                    # watchProcess(p.pid)
+                    # subprocess.Popen("cmdkey /delete:rdpgatway.et.byu.edu")
+                    # subprocess.Popen("cmdkey /delete:%s" % machine.machine)
             except ServerError as e:
                 dlg = wx.MessageDialog(self, str(e), 'Error', wx.OK | wx.ICON_ERROR)
                 dlg.ShowModal()
@@ -801,23 +834,7 @@ class MainWindow(wx.Frame):
                 message = showError("machines")
                 dlg = wx.MessageDialog(self, message, 'Error', wx.OK | wx.ICON_ERROR)
                 dlg.ShowModal()
-            else:
-                temp_file_location = os.environ['USERPROFILE'] + "/AppData/Local/Temp/" + str(int(time.time())) + ".rdp"
-                f = open(temp_file_location, "w")
-                f.write("gatewayhostname:s:rdpgateway.et.byu.edu\n")
-                f.write("gatewayusagemethod:i:1\n")
-                f.write("promptcredentialonce:i:1\n")
-                f.write("gatewayprofileusagemethod:i:1\n")
-                f.write("prompt for credentials:i:0\n")
-                f.write("full address:s:%s\n" % cl_machine)
-                f.close()
-                # rgscommand = ["open", "-n", "-F", "-a", "/Applications/Microsoft Remote Desktop.app/Contents/MacOS/Microsoft Remote Desktop", temp_file_location]
-                # The following saves the user's CAEDM credentials in the local Windows credentials cache, and then deletes the credentials after the RDP session is closed
-                subprocess.Popen("cmdkey /add:rdpgateway.et.byu.edu /user:et.byu.edu\%s /pass:%s" % (cl_user, cl_pass))
-                subprocess.Popen("cmdkey /add:%s /user:et.byu.edu\%s /pass:%s" % (cl_machine, cl_user, cl_pass))
-                p = subprocess.Popen("mstsc %s" % temp_file_location)
-                watchProcess(p.pid)
-                subprocess.Popen("cmdkey /delete %s" % cl_machine)
+            
 
         else:
             message = showError("machines")
@@ -900,20 +917,21 @@ def watchProcess(pid):
         if process.parent():
             process = process.parent()
         time.sleep(15) #wait 15 seconds, to make sure the connections start
-        while(True):
+        cont = True
+        while(cont):
             #check for the number of children's connections in the group to go down
             time.sleep(2)
             connections = []
             for child in process.children(recursive=True):
                 connections.extend( child.connections(kind="tcp") )
-            numout = 0
+            
             for connection in connections:
+                print("help stuck in loop")
                 #if no connections are in state established (or just one connection on windows), we are done, so kill it.
                 if connection.status == 'ESTABLISHED':
-                    numout += 1
-            if numout < 1:
-                break
-            
+                    print("Established")
+                    cont = False
+        print("FREEDOM")
         #kill the processes, and ourselves too
         for child in process.children(recursive=True):
             child.kill()
@@ -922,6 +940,7 @@ def watchProcess(pid):
         sys.exit()
         #bye!
     except:
+        #raise Exception("Connection Failed")
         pass
 
 class NoConf(wx.Frame):
